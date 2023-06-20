@@ -1,2 +1,2 @@
 main:
-	g++ src/main.cpp -o main -l Ole32 -l Mfplat -l Mf
+	g++ src/main.cpp src/util.cpp -o main -l DXGI -l D3D11

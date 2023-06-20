@@ -1,74 +1,73 @@
+#include <cstddef>
 #include <iostream>
 #include <vector>
 #include <windows.h>
-#include <mfapi.h>
-#include <Mfidl.h>
-#include <comdef.h>
+#include <d3d11.h>
 #include <dxgi.h>
+#include <dxgi1_2.h>
+#include <winnt.h>
+#include "util.h"
 
-void handleError(HRESULT hr, std::string msg);
-WCHAR* getDeviceName(IMFAttributes* device);
+void getDisplayOutputs(std::vector<IDXGIOutput1*>* outputs);
+void writeFrameToDisk(IDXGIOutputDuplication* display);
 namespace {
     HRESULT hr;
-    const int width = 1280;
-    const int height = 720;
+    const int frameTime = 1.0/30.0 * 1000;
 }
 
 int main(int argc, char* argv[]) {
-    std::vector<IDXGIAdapter*> adapters;
-    IDXGIFactory1* factory;
-    IDXGIAdapter* adapter;
-    CreateDXGIFactory1(__uuidof(IDXGIFactory), (void**) &factory);
-    for (int i = 0; factory->EnumAdapters(0, &adapter) != DXGI_ERROR_NOT_FOUND; i++ ) {
-        adapters.push_back(adapter);
-    }
-    std::cout << adapters.size();
-    factory->Release();
+    std::vector<IDXGIOutput1*> outputs;
+    ID3D11Device* device;
+    IDXGIOutputDuplication* duplicateDisplay;
+    hr = D3D11CreateDevice(NULL, D3D_DRIVER_TYPE_HARDWARE, NULL, 0, NULL, 0, D3D11_SDK_VERSION, &device, NULL, NULL);
+    handleError(hr, "Couldn't create Direct 3D device.");
+    getDisplayOutputs(&outputs);
+    hr = outputs.at(0)->DuplicateOutput(device, &duplicateDisplay);
+    handleError(hr, "Couldn't create duplicate output.");
+    writeFrameToDisk(duplicateDisplay);
     std::cout << "---PROGRAM END---\n";
     return 0;
 }
 
-WCHAR* getDeviceName(IMFAttributes* device) {
-    UINT32 strLen;
-    WCHAR* deviceName = NULL;
-    hr = device->GetAllocatedString(
-        MF_DEVSOURCE_ATTRIBUTE_FRIENDLY_NAME,
-        &deviceName, 
-        &strLen
-    );
-    handleError(hr, "Couldn't get device display name.");
-    return deviceName;
-}
-
-void handleError(HRESULT hr, std::string msg) {
-    if (FAILED(hr)) {
-        _com_error err = _com_error(hr);
-        std::cout << "Error: 0x" << std::hex << hr << ", " << err.ErrorMessage() << " " << msg << "\n";
-        exit(1);
+void getDisplayOutputs(std::vector<IDXGIOutput1*>* outputs) {
+    std::vector<IDXGIAdapter1*> adapters;
+    IDXGIFactory1* factory;
+    IDXGIAdapter1* adapter;
+    IDXGIOutput* output;
+    DXGI_ADAPTER_DESC adapterDesc;
+    DXGI_OUTPUT_DESC outputDesc;
+    hr = CreateDXGIFactory1(__uuidof(IDXGIFactory1), (void**) &factory);
+    handleError(hr, "Couldn't create DXGI factory.");
+    for (int i = 0; factory->EnumAdapters1(i, &adapter) != DXGI_ERROR_NOT_FOUND; i++) {
+        adapters.push_back(adapter);
+    }
+    for (int i = 0; i < adapters.size(); i++) {
+        adapters.at(i)->GetDesc(&adapterDesc);
+        std::wcout << "Adapter: " << adapterDesc.Description << "\n";
+        for (int j = 0; adapters.at(i)->EnumOutputs(j, &output) != DXGI_ERROR_NOT_FOUND; j++) {
+            IDXGIOutput1* temp;
+            hr = output->QueryInterface(__uuidof(IDXGIOutput1), (void**) &temp);
+            handleError(hr, "Couldn't convert IDXGIOutput to IDXGIOutput1.");
+            outputs->push_back(temp);
+            output->GetDesc(&outputDesc);
+            std::wcout << "Output: " << outputDesc.DeviceName << "\n";
+        }
     }
 }
 
-// void video() {
-    // IMFMediaSource* source; // Video Capture Source
-    // IMFAttributes* attributes;
-    // IMFActivate** devices; // Video Capture Devices
-    // UINT32 amount; 
-    // hr= CoInitializeEx(NULL, COINIT_APARTMENTTHREADED);
-    // handleError(hr, "Couldn't initialize the COM library.");
-    // hr = MFCreateAttributes(&attributes, 1);
-    // handleError(hr, "Couldn't create attribute store.");
-    // // Enumerate Video Devices
-    // hr = attributes->SetGUID(MF_DEVSOURCE_ATTRIBUTE_SOURCE_TYPE, MF_DEVSOURCE_ATTRIBUTE_SOURCE_TYPE_VIDCAP_GUID); 
-    // handleError(hr, "Couldn't set source type to video capture devices.");
-    // hr = MFEnumDeviceSources(attributes, &devices, &amount);
-    // handleError(hr, "Couldn't enumerate video capture devices.");
-    // std::cout << amount << " video capture device(s).\n";
-    // hr = devices[0]->ActivateObject(IID_PPV_ARGS(&source));
-    // handleError(hr, "Couldn't activate video capture device.");
-    // std::wcout << "Activated video capture device: " << getDeviceName(devices[0]) << "\n";
-    // for (int i = 0; i < amount; i++) {
-    //     devices[i]->Release();
-    // }
-    // source->Shutdown();
-    // CoUninitialize();
-// }
+void writeFrameToDisk(IDXGIOutputDuplication* display) {
+    DXGI_OUTDUPL_FRAME_INFO frameInfo;
+    IDXGIResource* desktopResource;
+    ID3D11Texture2D* texture;
+    D3D11_TEXTURE2D_DESC desc;
+    hr = display->AcquireNextFrame(frameTime, &frameInfo, &desktopResource);
+    handleError(hr, "Couldn't get next frame.");
+    hr = desktopResource->QueryInterface(__uuidof(ID3D11Texture2D), (void**) &texture);
+    handleError(hr, "Couldn't convert frame to texture2D.");
+    texture->GetDesc(&desc);
+    std::wcout << desc.Width << "\n";
+    std::wcout << desc.Height << "\n";
+    std::wcout << desc.Usage << "\n";
+    std::wcout << desc.Format << "\n";
+    // write texture to disk
+}
