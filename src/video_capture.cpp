@@ -1,25 +1,24 @@
-#include <iostream>
-#include <windows.h>
-#include <mfapi.h>
 #include <Mfidl.h>
+#include <mfapi.h>
+#include <windows.h>
+
+#include <iostream>
+
 #include "util.h"
 
-WCHAR* getDeviceName(IMFAttributes* device); 
-namespace {
-    HRESULT hr;
-}
-
+WCHAR* getDeviceName(IMFAttributes* device);
 void video() {
-    IMFMediaSource* source; // Video Capture Source
+    IMFMediaSource* source;  // Video Capture Source
     IMFAttributes* attributes;
-    IMFActivate** devices; // Video Capture Devices
-    UINT32 amount; 
-    hr= CoInitializeEx(NULL, COINIT_APARTMENTTHREADED);
+    IMFActivate** devices;  // Video Capture Devices
+    UINT32 amount;
+    HRESULT hr = CoInitializeEx(NULL, COINIT_APARTMENTTHREADED);
     handleError(hr, "Couldn't initialize the COM library.");
     hr = MFCreateAttributes(&attributes, 1);
     handleError(hr, "Couldn't create attribute store.");
     // Enumerate Video Devices
-    hr = attributes->SetGUID(MF_DEVSOURCE_ATTRIBUTE_SOURCE_TYPE, MF_DEVSOURCE_ATTRIBUTE_SOURCE_TYPE_VIDCAP_GUID); 
+    hr = attributes->SetGUID(MF_DEVSOURCE_ATTRIBUTE_SOURCE_TYPE,
+                             MF_DEVSOURCE_ATTRIBUTE_SOURCE_TYPE_VIDCAP_GUID);
     handleError(hr, "Couldn't set source type to video capture devices.");
     hr = MFEnumDeviceSources(attributes, &devices, &amount);
     handleError(hr, "Couldn't enumerate video capture devices.");
@@ -37,11 +36,8 @@ void video() {
 WCHAR* getDeviceName(IMFAttributes* device) {
     UINT32 strLen;
     WCHAR* deviceName = NULL;
-    hr = device->GetAllocatedString(
-        MF_DEVSOURCE_ATTRIBUTE_FRIENDLY_NAME,
-        &deviceName, 
-        &strLen
-    );
+    HRESULT hr =
+        device->GetAllocatedString(MF_DEVSOURCE_ATTRIBUTE_FRIENDLY_NAME, &deviceName, &strLen);
     handleError(hr, "Couldn't get device display name.");
     return deviceName;
 }

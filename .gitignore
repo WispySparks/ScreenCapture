@@ -1,5 +1,3 @@
-# VSCode
 .vscode
-# Misc
-*.exe
 output
+*.exe
