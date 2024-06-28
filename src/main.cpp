@@ -1,10 +1,6 @@
 #include <d3d11.h>
-#include <dxgi.h>
 #include <dxgi1_2.h>
-#include <windows.h>
-#include <winnt.h>
 
-#include <cstddef>
 #include <iostream>
 #include <vector>
 
@@ -48,7 +44,7 @@ void getDisplayOutputs(std::vector<IDXGIOutput1*>* outputs) {
         std::wcout << "Adapter: " << adapterDesc.Description << "\n";
         for (int j = 0; adapters.at(i)->EnumOutputs(j, &output) != DXGI_ERROR_NOT_FOUND; j++) {
             IDXGIOutput1* temp;
-            hr = output->QueryInterface(__uuidof(IDXGIOutput1), (void**)&temp);
+            hr = output->QueryInterface(&temp);
             handleError(hr, "Couldn't convert IDXGIOutput to IDXGIOutput1.");
             outputs->push_back(temp);
             output->GetDesc(&outputDesc);
@@ -64,7 +60,7 @@ void writeFrameToDisk(IDXGIOutputDuplication* display) {
     D3D11_TEXTURE2D_DESC desc;
     HRESULT hr = display->AcquireNextFrame(frameTime, &frameInfo, &desktopResource);
     handleError(hr, "Couldn't get next frame.");
-    hr = desktopResource->QueryInterface(__uuidof(ID3D11Texture2D), (void**)&texture);
+    hr = desktopResource->QueryInterface(&texture);
     handleError(hr, "Couldn't convert frame to texture2D.");
     texture->GetDesc(&desc);
     std::wcout << desc.Width << "\n";

@@ -1,8 +1,6 @@
 #include <Mfidl.h>
 #include <mfapi.h>
-#include <windows.h>
 
-#include <cstddef>
 #include <iostream>
 
 #include "util.h"
