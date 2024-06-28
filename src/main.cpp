@@ -12,7 +12,8 @@ int main(int argc, char* argv[]) {
 }
 
 void CaptureFrames(bool captureWindow) {
-    HDC srcDC = GetDC(NULL);
+    HWND handle = NULL;
+    HDC srcDC = GetDC(handle);
     int width = GetSystemMetrics(SM_CXVIRTUALSCREEN);
     int height = GetSystemMetrics(SM_CYVIRTUALSCREEN);
     if (captureWindow) {
@@ -30,13 +31,13 @@ void CaptureFrames(bool captureWindow) {
         for (HWND window : windows) {
             std::cout << GetWindowTitle(window) << "\n";
         }
-        HWND window = windows.at(0);
+        handle = windows.at(0);
         RECT rect;
-        GetWindowRect(window, &rect);
+        GetWindowRect(handle, &rect);
         int width = rect.right - rect.left;
         int height = rect.bottom - rect.top;
         std::cout << width << " " << height << "\n";
-        srcDC = GetWindowDC(window);
+        srcDC = GetWindowDC(handle);
     }
     HDC memoryDC =                  // IDXGISurface1?
         CreateCompatibleDC(srcDC);  // Place in memory that we're gonna copy the actual screen to
@@ -50,5 +51,5 @@ void CaptureFrames(bool captureWindow) {
 
     DeleteObject(bitmap);
     DeleteDC(memoryDC);
-    DeleteDC(srcDC);
+    ReleaseDC(handle, srcDC);
 }
