@@ -2,6 +2,7 @@
 #include <mfapi.h>
 #include <windows.h>
 
+#include <cstddef>
 #include <iostream>
 
 #include "util.h"
@@ -26,7 +27,7 @@ void video() {
     hr = devices[0]->ActivateObject(IID_PPV_ARGS(&source));
     handleError(hr, "Couldn't activate video capture device.");
     std::wcout << "Activated video capture device: " << getDeviceName(devices[0]) << "\n";
-    for (int i = 0; i < amount; i++) {
+    for (size_t i = 0; i < amount; i++) {
         devices[i]->Release();
     }
     source->Shutdown();

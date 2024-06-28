@@ -43,7 +43,7 @@ void getDisplayOutputs(std::vector<IDXGIOutput1*>* outputs) {
     for (int i = 0; factory->EnumAdapters1(i, &adapter) != DXGI_ERROR_NOT_FOUND; i++) {
         adapters.push_back(adapter);
     }
-    for (int i = 0; i < adapters.size(); i++) {
+    for (size_t i = 0; i < adapters.size(); i++) {
         adapters.at(i)->GetDesc(&adapterDesc);
         std::wcout << "Adapter: " << adapterDesc.Description << "\n";
         for (int j = 0; adapters.at(i)->EnumOutputs(j, &output) != DXGI_ERROR_NOT_FOUND; j++) {
