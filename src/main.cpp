@@ -1,71 +1,54 @@
-#include <d3d11.h>
-#include <dxgi1_2.h>
-
 #include <iostream>
 #include <vector>
 
 #include "util.h"
 
-void getDisplayOutputs(std::vector<IDXGIOutput1*>* outputs);
-void writeFrameToDisk(IDXGIOutputDuplication* display);
-namespace {
-const int frameTime = 1.0 / 30.0 * 1000;
-}
+void CaptureFrames(bool captureWindow);
 
 int main(int argc, char* argv[]) {
-    std::vector<IDXGIOutput1*> outputs;
-    ID3D11Device* device;
-    IDXGIOutputDuplication* duplicateDisplay;
-    HRESULT hr = D3D11CreateDevice(NULL, D3D_DRIVER_TYPE_HARDWARE, NULL, 0, NULL, 0,
-                                   D3D11_SDK_VERSION, &device, NULL, NULL);
-    handleError(hr, "Couldn't create Direct 3D device.");
-    getDisplayOutputs(&outputs);
-    hr = outputs.at(0)->DuplicateOutput(device, &duplicateDisplay);
-    handleError(hr, "Couldn't create duplicate output.");
-    writeFrameToDisk(duplicateDisplay);
+    CaptureFrames(true);
     std::cout << "---PROGRAM END---\n";
     return 0;
 }
 
-void getDisplayOutputs(std::vector<IDXGIOutput1*>* outputs) {
-    std::vector<IDXGIAdapter1*> adapters;
-    IDXGIFactory1* factory;
-    IDXGIAdapter1* adapter;
-    IDXGIOutput* output;
-    DXGI_ADAPTER_DESC adapterDesc;
-    DXGI_OUTPUT_DESC outputDesc;
-    HRESULT hr = CreateDXGIFactory1(__uuidof(IDXGIFactory1), (void**)&factory);
-    handleError(hr, "Couldn't create DXGI factory.");
-    for (int i = 0; factory->EnumAdapters1(i, &adapter) != DXGI_ERROR_NOT_FOUND; i++) {
-        adapters.push_back(adapter);
-    }
-    for (size_t i = 0; i < adapters.size(); i++) {
-        adapters.at(i)->GetDesc(&adapterDesc);
-        std::wcout << "Adapter: " << adapterDesc.Description << "\n";
-        for (int j = 0; adapters.at(i)->EnumOutputs(j, &output) != DXGI_ERROR_NOT_FOUND; j++) {
-            IDXGIOutput1* temp;
-            hr = output->QueryInterface(&temp);
-            handleError(hr, "Couldn't convert IDXGIOutput to IDXGIOutput1.");
-            outputs->push_back(temp);
-            output->GetDesc(&outputDesc);
-            std::wcout << "Output: " << outputDesc.DeviceName << "\n";
+void CaptureFrames(bool captureWindow) {
+    HDC srcDC = GetDC(NULL);
+    int width = GetSystemMetrics(SM_CXVIRTUALSCREEN);
+    int height = GetSystemMetrics(SM_CYVIRTUALSCREEN);
+    if (captureWindow) {
+        std::vector<HWND> windows;
+        EnumWindows(
+            [](HWND window, LPARAM lParam) {
+                std::vector<HWND>* windows = reinterpret_cast<std::vector<HWND>*>(lParam);
+                if (IsWindowVisible(window) && GetWindowTextLengthA(window) > 0 &&
+                    GetWindowTitle(window) != "Program Manager") {
+                    windows->push_back(window);
+                }
+                return TRUE;
+            },
+            reinterpret_cast<LPARAM>(&windows));
+        for (HWND window : windows) {
+            std::cout << GetWindowTitle(window) << "\n";
         }
+        HWND window = windows.at(0);
+        RECT rect;
+        GetWindowRect(window, &rect);
+        int width = rect.right - rect.left;
+        int height = rect.bottom - rect.top;
+        std::cout << width << " " << height << "\n";
+        srcDC = GetWindowDC(window);
     }
-}
+    HDC memoryDC =                  // IDXGISurface1?
+        CreateCompatibleDC(srcDC);  // Place in memory that we're gonna copy the actual screen to
+    HBITMAP bitmap = CreateCompatibleBitmap(srcDC, width, height);
+    SelectObject(memoryDC, bitmap);
 
-void writeFrameToDisk(IDXGIOutputDuplication* display) {
-    DXGI_OUTDUPL_FRAME_INFO frameInfo;
-    IDXGIResource* desktopResource;
-    ID3D11Texture2D* texture;
-    D3D11_TEXTURE2D_DESC desc;
-    HRESULT hr = display->AcquireNextFrame(frameTime, &frameInfo, &desktopResource);
-    handleError(hr, "Couldn't get next frame.");
-    hr = desktopResource->QueryInterface(&texture);
-    handleError(hr, "Couldn't convert frame to texture2D.");
-    texture->GetDesc(&desc);
-    std::wcout << desc.Width << "\n";
-    std::wcout << desc.Height << "\n";
-    std::wcout << desc.Usage << "\n";
-    std::wcout << desc.Format << "\n";
-    // write texture to disk
+    while (true) {
+        BitBlt(memoryDC, 0, 0, width, height, srcDC, 0, 0, SRCCOPY);
+        Sleep(1000);
+    }
+
+    DeleteObject(bitmap);
+    DeleteDC(memoryDC);
+    DeleteDC(srcDC);
 }

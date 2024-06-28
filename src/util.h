@@ -5,6 +5,7 @@
 
 #include <string>
 
-void handleError(HRESULT hr, std::string msg);
+void HandleError(HRESULT hr, std::string msg);
+std::string GetWindowTitle(HWND window);
 
 #endif

@@ -1,12 +1,22 @@
 #include <comdef.h>
 
 #include <iostream>
+#include <string>
+#include <vector>
 
-void handleError(HRESULT hr, std::string msg) {
+void HandleError(HRESULT hr, std::string msg) {
     if (FAILED(hr)) {
         _com_error err{hr};
         std::cout << "Error: 0x" << std::hex << hr << ", " << err.ErrorMessage() << " " << msg
                   << "\n";
-        exit(1);
+        exit(hr);
     }
+}
+
+std::string GetWindowTitle(HWND window) {
+    int length = GetWindowTextLengthA(window) + 1;
+    std::vector<char> title;
+    title.reserve(length);
+    GetWindowTextA(window, title.data(), length);
+    return std::string{title.data()};
 }
