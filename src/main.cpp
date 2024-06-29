@@ -6,7 +6,7 @@
 void CaptureFrames(bool captureWindow);
 
 int main(int argc, char* argv[]) {
-    CaptureFrames(true);
+    CaptureFrames(false);
     std::cout << "---PROGRAM END---\n";
     return 0;
 }
@@ -34,22 +34,33 @@ void CaptureFrames(bool captureWindow) {
         handle = windows.at(0);
         RECT rect;
         GetWindowRect(handle, &rect);
-        int width = rect.right - rect.left;
-        int height = rect.bottom - rect.top;
-        std::cout << width << " " << height << "\n";
+        width = rect.right - rect.left;
+        height = rect.bottom - rect.top;
         srcDC = GetWindowDC(handle);
     }
-    HDC memoryDC =                  // IDXGISurface1?
+    std::cout << "Width: " << width << " Height: " << height << "\n";
+    HDC destDC =                    // IDXGISurface1?
         CreateCompatibleDC(srcDC);  // Place in memory that we're gonna copy the actual screen to
     HBITMAP bitmap = CreateCompatibleBitmap(srcDC, width, height);
-    SelectObject(memoryDC, bitmap);
-
-    while (true) {
-        BitBlt(memoryDC, 0, 0, width, height, srcDC, 0, 0, SRCCOPY);
+    BITMAPINFOHEADER infoHeader = {sizeof(infoHeader), width, -height, 1, 24, BI_RGB};
+    std::vector<char> buffer(abs(infoHeader.biWidth * infoHeader.biHeight * infoHeader.biBitCount));
+    SelectObject(destDC, bitmap);
+    while (!GetAsyncKeyState(VK_RSHIFT)) {
+        BitBlt(destDC, 0, 0, width, height, srcDC, 0, 0, SRCCOPY);
+        GetDIBits(srcDC, bitmap, 0, height, buffer.data(), (BITMAPINFO*)&infoHeader,
+                  DIB_RGB_COLORS);
+        for (size_t i = 0; i < buffer.size(); i++) {
+            std::cout << static_cast<int>(buffer.at(i)) << "\n";
+        }
+        OpenClipboard(NULL);
+        EmptyClipboard();
+        SetClipboardData(CF_BITMAP, bitmap);
+        CloseClipboard();
         Sleep(1000);
+        // https://stackoverflow.com/questions/51903888/is-it-possible-to-send-ffmpeg-images-by-using-pipe
+        // ffmpeg -y -f rawvideo -pix_fmt argb -s 800x600 -r 25 -i - -c:v libx264 -profile:v baseline -level:v 3 -b:v 2500 -an out_vid.h264
     }
-
     DeleteObject(bitmap);
-    DeleteDC(memoryDC);
+    DeleteDC(destDC);
     ReleaseDC(handle, srcDC);
 }

@@ -15,8 +15,7 @@ void HandleError(HRESULT hr, std::string msg) {
 
 std::string GetWindowTitle(HWND window) {
     int length = GetWindowTextLengthA(window) + 1;
-    std::vector<char> title;
-    title.reserve(length);
+    std::vector<char> title(length);
     GetWindowTextA(window, title.data(), length);
     return std::string{title.data()};
 }
