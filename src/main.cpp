@@ -1,3 +1,6 @@
+#include <process.h>
+
+#include <format>
 #include <iostream>
 #include <vector>
 
@@ -45,21 +48,23 @@ void CaptureFrames(bool captureWindow) {
     BITMAPINFOHEADER infoHeader = {sizeof(infoHeader), width, -height, 1, 24, BI_RGB};
     std::vector<char> buffer(abs(infoHeader.biWidth * infoHeader.biHeight * infoHeader.biBitCount));
     SelectObject(destDC, bitmap);
+    std::string cmd = std::format(
+        "ffmpeg -hide_banner -y -f rawvideo -pix_fmt rgb24 -s {}x{} -r 30 -i - -c:v libx264 "
+        "-pix_fmt yuv420p -an out_vid.mp4",
+        width, height);
+    FILE* pipe = _popen(cmd.c_str(), "wb");
     while (!GetAsyncKeyState(VK_RSHIFT)) {
         BitBlt(destDC, 0, 0, width, height, srcDC, 0, 0, SRCCOPY);
         GetDIBits(srcDC, bitmap, 0, height, buffer.data(), (BITMAPINFO*)&infoHeader,
-                  DIB_RGB_COLORS);
-        for (size_t i = 0; i < buffer.size(); i++) {
-            std::cout << static_cast<int>(buffer.at(i)) << "\n";
-        }
-        OpenClipboard(NULL);
-        EmptyClipboard();
-        SetClipboardData(CF_BITMAP, bitmap);
-        CloseClipboard();
-        Sleep(1000);
-        // https://stackoverflow.com/questions/51903888/is-it-possible-to-send-ffmpeg-images-by-using-pipe
-        // ffmpeg -y -f rawvideo -pix_fmt argb -s 800x600 -r 25 -i - -c:v libx264 -profile:v baseline -level:v 3 -b:v 2500 -an out_vid.h264
+                  DIB_RGB_COLORS);  // Fill buffer with screen data as RGB, 8bpp
+        std::fwrite(buffer.data(), sizeof(char), buffer.size(), pipe);
+        // Sleep(100);
+        // OpenClipboard(NULL);
+        // EmptyClipboard();
+        // SetClipboardData(CF_BITMAP, bitmap);
+        // CloseClipboard();
     }
+    std::fclose(pipe);
     DeleteObject(bitmap);
     DeleteDC(destDC);
     ReleaseDC(handle, srcDC);
