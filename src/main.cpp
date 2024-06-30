@@ -47,15 +47,17 @@ void CaptureFrames(bool captureWindow) {
     std::vector<char> buffer(
         std::abs(infoHeader.biWidth * infoHeader.biHeight * (infoHeader.biBitCount / CHAR_BIT)));
     SelectObject(destDC, bitmap);
+    // Bitmaps are stored as BGR, BI_RGB simply means uncompressed data.
     std::string cmd = std::format(
-        "ffmpeg -v verbose -hide_banner -y -f rawvideo -pix_fmt rgb24 -s {}x{} -i - -c:v "
+        "ffmpeg -v verbose -hide_banner -y -f rawvideo -pix_fmt bgr24 -s {}x{} -i - -c:v "
         "libx264 -pix_fmt yuv420p -r 30 -an out_vid.mp4",
         width, height);
     FILE* pipe = _popen(cmd.c_str(), "wb");
     while (!GetAsyncKeyState(VK_RSHIFT)) {
         BitBlt(destDC, 0, 0, width, height, srcDC, 0, 0, SRCCOPY);
+        // Fill buffer with screen data as BGR, 8bpp, last parameter is for unused color table
         GetDIBits(srcDC, bitmap, 0, height, buffer.data(), (BITMAPINFO*)&infoHeader,
-                  DIB_RGB_COLORS);  // Fill buffer with screen data as RGB, 8bpp
+                  DIB_RGB_COLORS);
         std::fwrite(buffer.data(), sizeof(char), buffer.size(), pipe);
     }
     std::fclose(pipe);
