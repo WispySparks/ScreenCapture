@@ -1,5 +1,3 @@
-#include <process.h>
-
 #include <format>
 #include <iostream>
 #include <vector>
@@ -10,7 +8,7 @@ void CaptureFrames(bool captureWindow);
 
 int main(int argc, char* argv[]) {
     CaptureFrames(false);
-    std::cout << "---PROGRAM END---\n";
+    std::cout << "---PROGRAM END---\n\n";
     return 0;
 }
 
@@ -46,11 +44,12 @@ void CaptureFrames(bool captureWindow) {
         CreateCompatibleDC(srcDC);  // Place in memory that we're gonna copy the actual screen to
     HBITMAP bitmap = CreateCompatibleBitmap(srcDC, width, height);
     BITMAPINFOHEADER infoHeader = {sizeof(infoHeader), width, -height, 1, 24, BI_RGB};
-    std::vector<char> buffer(abs(infoHeader.biWidth * infoHeader.biHeight * infoHeader.biBitCount));
+    std::vector<char> buffer(
+        std::abs(infoHeader.biWidth * infoHeader.biHeight * (infoHeader.biBitCount / CHAR_BIT)));
     SelectObject(destDC, bitmap);
     std::string cmd = std::format(
-        "ffmpeg -hide_banner -y -f rawvideo -pix_fmt rgb24 -s {}x{} -r 30 -i - -c:v libx264 "
-        "-pix_fmt yuv420p -an out_vid.mp4",
+        "ffmpeg -v verbose -hide_banner -y -f rawvideo -pix_fmt rgb24 -s {}x{} -i - -c:v "
+        "libx264 -pix_fmt yuv420p -r 30 -an out_vid.mp4",
         width, height);
     FILE* pipe = _popen(cmd.c_str(), "wb");
     while (!GetAsyncKeyState(VK_RSHIFT)) {
@@ -58,11 +57,6 @@ void CaptureFrames(bool captureWindow) {
         GetDIBits(srcDC, bitmap, 0, height, buffer.data(), (BITMAPINFO*)&infoHeader,
                   DIB_RGB_COLORS);  // Fill buffer with screen data as RGB, 8bpp
         std::fwrite(buffer.data(), sizeof(char), buffer.size(), pipe);
-        // Sleep(100);
-        // OpenClipboard(NULL);
-        // EmptyClipboard();
-        // SetClipboardData(CF_BITMAP, bitmap);
-        // CloseClipboard();
     }
     std::fclose(pipe);
     DeleteObject(bitmap);
