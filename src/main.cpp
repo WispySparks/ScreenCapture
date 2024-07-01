@@ -2,6 +2,7 @@
 #include <dxgi1_3.h>
 
 #include <format>
+#include <functional>
 #include <iostream>
 #include <vector>
 
@@ -13,6 +14,7 @@ void CaptureWindow();
 int main(int argc, char* argv[]) {
     //! use a swap chain but keep this for desktops, also use a static size like obs
     // https://stackoverflow.com/a/43631781
+    // https://stackoverflow.com/questions/76567120/capturing-a-window-on-win-10-without-winrt
     // CaptureDesktop();
     CaptureWindow();
     std::cout << "---PROGRAM END---\n\n";
@@ -20,13 +22,24 @@ int main(int argc, char* argv[]) {
 }
 
 void CaptureWindow() {
-    ID3D11Device* device;
-    ID3D11DeviceContext* context;
-    IDXGIFactory2* factory;
-    IDXGISwapChain1* swapChain;
-    ID3D11Texture2D* frameBuffer;
-    ID3D11Texture2D* copiedFrame;
-    D3D11_MAPPED_SUBRESOURCE mappedResource;
+    ID3D11Device* device = nullptr;
+    ID3D11DeviceContext* context = nullptr;
+    IDXGIFactory2* factory = nullptr;
+    IDXGISwapChain1* swapChain = nullptr;
+    ID3D11Texture2D* frameBuffer = nullptr;
+    ID3D11Texture2D* copiedFrame = nullptr;
+    std::function<void()> cleanup = [&]() {
+        ReleaseIfExists(copiedFrame);
+        ReleaseIfExists(frameBuffer);
+        ReleaseIfExists(swapChain);
+        ReleaseIfExists(factory);
+        if (context) {
+            context->ClearState();
+            context->Flush();
+            context->Release();
+        }
+        ReleaseIfExists(device);
+    };
     auto windows = GetWindows();
     HWND window = windows.at(0);
     std::cout << GetWindowTitle(window) << "\n";
@@ -34,9 +47,9 @@ void CaptureWindow() {
     deviceFlags |= D3D11_CREATE_DEVICE_DEBUG;
     HRESULT hr = D3D11CreateDevice(NULL, D3D_DRIVER_TYPE_HARDWARE, NULL, deviceFlags, NULL, 0,
                                    D3D11_SDK_VERSION, &device, NULL, &context);
-    HandleError(hr, "Couldn't create device!");
+    HandleError(hr, "Couldn't create device!", cleanup);
     hr = CreateDXGIFactory1(IID_PPV_ARGS(&factory));
-    HandleError(hr, "Couldn't create factory!");
+    HandleError(hr, "Couldn't create factory!", cleanup);
     DXGI_SWAP_CHAIN_DESC1 desc;
     desc.Width = 0;
     desc.Height = 0;
@@ -50,20 +63,17 @@ void CaptureWindow() {
     desc.AlphaMode = DXGI_ALPHA_MODE_IGNORE;
     desc.Flags = 0;
     hr = factory->CreateSwapChainForHwnd(device, window, &desc, NULL, NULL, &swapChain);
-    HandleError(hr, "Couldn't create swap chain!");
+    HandleError(hr, "Couldn't create swap chain!", cleanup);
     hr = swapChain->GetBuffer(0, IID_PPV_ARGS(&frameBuffer));
-    HandleError(hr, "Couldn't get swap chain buffer!");
-    context->CopyResource(copiedFrame, frameBuffer);
+    HandleError(hr, "Couldn't get swap chain buffer!", cleanup);
+    context->CopyResource(copiedFrame, frameBuffer);  //! currently fails cause copied frame is null
     // D3D11_TEXTURE2D_DESC textureDesc;
     // device->CreateTexture2D(&textureDesc, NULL, &copiedFrame);
+    D3D11_MAPPED_SUBRESOURCE mappedResource;
     hr = context->Map(copiedFrame, 0, D3D11_MAP_READ, 0, &mappedResource);
-    HandleError(hr, "Couldn't map the frame buffer!");
+    HandleError(hr, "Couldn't map the frame buffer!", cleanup);
     // Cleanup
-    copiedFrame->Release();
-    frameBuffer->Release();
-    swapChain->Release();
-    factory->Release();
-    device->Release();
+    cleanup();
 }
 
 void CaptureDesktop() {

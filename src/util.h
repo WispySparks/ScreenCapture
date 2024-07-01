@@ -3,10 +3,14 @@
 
 #include <windows.h>
 
+#include <functional>
 #include <string>
 #include <vector>
 
-void HandleError(HRESULT hr, std::string msg);
+inline void ReleaseIfExists(IUnknown* obj) {
+    if (obj) obj->Release();
+}
+void HandleError(HRESULT hr, std::string msg, std::function<void()> beforeExit = {});
 void HandleError(bool failed, std::string msg);
 std::string GetWindowTitle(HWND window);
 std::vector<HWND> GetWindows();

@@ -1,14 +1,16 @@
 #include <comdef.h>
 
+#include <functional>
 #include <iostream>
 #include <string>
 #include <vector>
 
-void HandleError(HRESULT hr, std::string msg) {
+void HandleError(HRESULT hr, std::string msg, std::function<void()> beforeExit = {}) {
     if (FAILED(hr)) {
         _com_error err{hr};
         std::cerr << "Error: 0x" << std::hex << hr << ", " << err.ErrorMessage() << "\n"
                   << msg << "\n";
+        beforeExit();
         exit(hr);
     }
 }
