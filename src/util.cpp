@@ -13,6 +13,14 @@ void HandleError(HRESULT hr, std::string msg) {
     }
 }
 
+void HandleError(bool failed, std::string msg) {
+    if (failed) {
+        DWORD code = GetLastError();
+        std::cerr << "Error: 0x" << std::hex << code << ", " << msg << "\n";
+        exit(code);
+    }
+}
+
 std::string GetWindowTitle(HWND window) {
     int length = GetWindowTextLengthA(window) + 1;
     std::vector<char> title(length);
