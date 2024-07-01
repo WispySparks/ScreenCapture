@@ -1,18 +1,72 @@
+#include <d3d11.h>
+#include <dxgi1_3.h>
+
 #include <format>
 #include <iostream>
 #include <vector>
 
 #include "util.h"
 
-void CaptureFrames(bool captureWindow);
+void CaptureDesktop();
+void CaptureWindow();
 
 int main(int argc, char* argv[]) {
-    CaptureFrames(true);
+    //! use a swap chain but keep this for desktops, also use a static size like obs
+    // https://stackoverflow.com/a/43631781
+    // CaptureDesktop();
+    CaptureWindow();
     std::cout << "---PROGRAM END---\n\n";
     return 0;
 }
 
-void CaptureFrames(bool captureWindow) {
+void CaptureWindow() {
+    ID3D11Device* device;
+    ID3D11DeviceContext* context;
+    IDXGIFactory2* factory;
+    IDXGISwapChain1* swapChain;
+    ID3D11Texture2D* frameBuffer;
+    ID3D11Texture2D* copiedFrame;
+    D3D11_MAPPED_SUBRESOURCE mappedResource;
+    auto windows = GetWindows();
+    HWND window = windows.at(0);
+    std::cout << GetWindowTitle(window) << "\n";
+    UINT deviceFlags = D3D11_CREATE_DEVICE_BGRA_SUPPORT;
+    deviceFlags |= D3D11_CREATE_DEVICE_DEBUG;
+    HRESULT hr = D3D11CreateDevice(NULL, D3D_DRIVER_TYPE_HARDWARE, NULL, deviceFlags, NULL, 0,
+                                   D3D11_SDK_VERSION, &device, NULL, &context);
+    HandleError(hr, "Couldn't create device!");
+    hr = CreateDXGIFactory1(IID_PPV_ARGS(&factory));
+    HandleError(hr, "Couldn't create factory!");
+    DXGI_SWAP_CHAIN_DESC1 desc;
+    desc.Width = 0;
+    desc.Height = 0;
+    desc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+    desc.Stereo = FALSE;
+    desc.SampleDesc = {1, 0};
+    desc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
+    desc.BufferCount = 2;
+    desc.Scaling = DXGI_SCALING_STRETCH;
+    desc.SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD;
+    desc.AlphaMode = DXGI_ALPHA_MODE_IGNORE;
+    desc.Flags = 0;
+    hr = factory->CreateSwapChainForHwnd(device, window, &desc, NULL, NULL, &swapChain);
+    HandleError(hr, "Couldn't create swap chain!");
+    hr = swapChain->GetBuffer(0, IID_PPV_ARGS(&frameBuffer));
+    HandleError(hr, "Couldn't get swap chain buffer!");
+    context->CopyResource(copiedFrame, frameBuffer);
+    // D3D11_TEXTURE2D_DESC textureDesc;
+    // device->CreateTexture2D(&textureDesc, NULL, &copiedFrame);
+    hr = context->Map(copiedFrame, 0, D3D11_MAP_READ, 0, &mappedResource);
+    HandleError(hr, "Couldn't map the frame buffer!");
+    // Cleanup
+    copiedFrame->Release();
+    frameBuffer->Release();
+    swapChain->Release();
+    factory->Release();
+    device->Release();
+}
+
+void CaptureDesktop() {
     HWND handle = NULL;
     HDC srcDC = GetDC(handle);
     HandleError(srcDC == NULL, "GetDC failed!");
@@ -20,32 +74,7 @@ void CaptureFrames(bool captureWindow) {
     HandleError(width == 0, "GetSystemMetrics(Width) failed!");
     int height = GetSystemMetrics(SM_CYVIRTUALSCREEN);
     HandleError(height == 0, "GetSystemMetrics(Height) failed!");
-    if (captureWindow) {
-        std::vector<HWND> windows;
-        EnumWindows(
-            [](HWND window, LPARAM lParam) {
-                std::vector<HWND>* windows = reinterpret_cast<std::vector<HWND>*>(lParam);
-                if (IsWindowVisible(window) && GetWindowTextLengthA(window) > 0 &&
-                    GetWindowTitle(window) != "Program Manager") {
-                    windows->push_back(window);
-                }
-                return TRUE;
-            },
-            reinterpret_cast<LPARAM>(&windows));
-        for (HWND window : windows) {
-            std::cout << GetWindowTitle(window) << "\n";
-        }
-        handle = windows.at(0);
-        RECT rect;
-        int result = GetWindowRect(handle, &rect);
-        HandleError(result == 0, "GetWindowRect failed!");
-        width = rect.right - rect.left;
-        height = rect.bottom - rect.top;
-        srcDC = GetWindowDC(handle);
-        HandleError(srcDC == NULL, "GetWindowDC failed!");
-    }
-    std::cout << "Width: " << width << " Height: " << height << "\n";
-    HDC destDC =                    // IDXGISurface1?
+    HDC destDC =
         CreateCompatibleDC(srcDC);  // Place in memory that we're gonna copy the actual screen to
     HandleError(destDC == NULL, "CreateCompatibleDC failed!");
     HBITMAP bitmap = CreateCompatibleBitmap(srcDC, width, height);
