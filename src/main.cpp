@@ -11,8 +11,18 @@
 void CaptureDesktop();
 void CaptureWindow();
 
+namespace {
+const int width = GetSystemMetrics(SM_CXVIRTUALSCREEN);
+const int height = GetSystemMetrics(SM_CYVIRTUALSCREEN);
+const std::string cmd = std::format(
+    "ffmpeg -hide_banner -y -f rawvideo -pix_fmt bgr24 -s {}x{} -i - -c:v "
+    "libx264 -pix_fmt yuv420p -r 30 -an out_vid.mp4",
+    width, height);
+}
+
 int main(int argc, char* argv[]) {
-    //! use a swap chain but keep this for desktops, also use a static size like obs
+    HandleError(width == 0, "GetSystemMetrics(Width) failed!");
+    HandleError(height == 0, "GetSystemMetrics(Height) failed!");
     // https://stackoverflow.com/a/43631781
     // https://stackoverflow.com/questions/76567120/capturing-a-window-on-win-10-without-winrt
     // CaptureDesktop();
@@ -33,7 +43,7 @@ void CaptureWindow() {
         ReleaseIfExists(frameBuffer);
         ReleaseIfExists(swapChain);
         ReleaseIfExists(factory);
-        if (context) {
+        if (context != nullptr) {
             context->ClearState();
             context->Flush();
             context->Release();
@@ -80,10 +90,6 @@ void CaptureDesktop() {
     HWND handle = NULL;
     HDC srcDC = GetDC(handle);
     HandleError(srcDC == NULL, "GetDC failed!");
-    int width = GetSystemMetrics(SM_CXVIRTUALSCREEN);
-    HandleError(width == 0, "GetSystemMetrics(Width) failed!");
-    int height = GetSystemMetrics(SM_CYVIRTUALSCREEN);
-    HandleError(height == 0, "GetSystemMetrics(Height) failed!");
     HDC destDC =
         CreateCompatibleDC(srcDC);  // Place in memory that we're gonna copy the actual screen to
     HandleError(destDC == NULL, "CreateCompatibleDC failed!");
@@ -93,10 +99,6 @@ void CaptureDesktop() {
     std::vector<char> buffer(
         std::abs(infoHeader.biWidth * infoHeader.biHeight * (infoHeader.biBitCount / CHAR_BIT)));
     // Bitmaps are stored as BGR, BI_RGB simply means uncompressed data.
-    std::string cmd = std::format(
-        "ffmpeg -hide_banner -y -f rawvideo -pix_fmt bgr24 -s {}x{} -i - -c:v "
-        "libx264 -pix_fmt yuv420p -r 30 -an out_vid.mp4",
-        width, height);
     FILE* pipe = _popen(cmd.c_str(), "wb");
     while (!GetAsyncKeyState(VK_RSHIFT)) {
         HGDIOBJ prevObj = SelectObject(destDC, bitmap);
