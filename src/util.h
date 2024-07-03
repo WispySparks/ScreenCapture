@@ -7,9 +7,6 @@
 #include <string>
 #include <vector>
 
-inline void ReleaseIfExists(IUnknown* obj) {
-    if (obj != nullptr) obj->Release();
-}
 void HandleError(HRESULT hr, std::string msg, std::function<void()> beforeExit = {});
 void HandleError(bool failed, std::string msg);
 std::string GetWindowTitle(HWND window);
