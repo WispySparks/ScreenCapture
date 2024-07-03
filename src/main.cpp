@@ -54,31 +54,38 @@ void CaptureWindow() {
     HWND window = windows.at(0);
     std::cout << GetWindowTitle(window) << "\n";
     UINT deviceFlags = D3D11_CREATE_DEVICE_BGRA_SUPPORT;
-    deviceFlags |= D3D11_CREATE_DEVICE_DEBUG;
+    deviceFlags |= D3D11_CREATE_DEVICE_DEBUG;  // DEBUG FLAG
     HRESULT hr = D3D11CreateDevice(NULL, D3D_DRIVER_TYPE_HARDWARE, NULL, deviceFlags, NULL, 0,
                                    D3D11_SDK_VERSION, &device, NULL, &context);
     HandleError(hr, "Couldn't create device!", cleanup);
-    hr = CreateDXGIFactory1(IID_PPV_ARGS(&factory));
+    UINT factoryflags = 0;
+    factoryflags |= DXGI_CREATE_FACTORY_DEBUG;  // DEBUG FLAG
+    hr = CreateDXGIFactory2(factoryflags, IID_PPV_ARGS(&factory));
     HandleError(hr, "Couldn't create factory!", cleanup);
-    DXGI_SWAP_CHAIN_DESC1 desc;
-    desc.Width = 0;
-    desc.Height = 0;
-    desc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
-    desc.Stereo = FALSE;
-    desc.SampleDesc = {1, 0};
-    desc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
-    desc.BufferCount = 2;
-    desc.Scaling = DXGI_SCALING_STRETCH;
-    desc.SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD;
-    desc.AlphaMode = DXGI_ALPHA_MODE_IGNORE;
-    desc.Flags = 0;
-    hr = factory->CreateSwapChainForHwnd(device, window, &desc, NULL, NULL, &swapChain);
+    DXGI_SWAP_CHAIN_DESC1 swapChainDesc;
+    swapChainDesc.Width = 0;
+    swapChainDesc.Height = 0;
+    swapChainDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+    swapChainDesc.Stereo = FALSE;
+    swapChainDesc.SampleDesc = {1, 0};
+    swapChainDesc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
+    swapChainDesc.BufferCount = 2;
+    swapChainDesc.Scaling = DXGI_SCALING_STRETCH;
+    swapChainDesc.SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD;
+    swapChainDesc.AlphaMode = DXGI_ALPHA_MODE_IGNORE;
+    swapChainDesc.Flags = 0;
+    hr = factory->CreateSwapChainForHwnd(device, window, &swapChainDesc, NULL, NULL, &swapChain);
     HandleError(hr, "Couldn't create swap chain!", cleanup);
     hr = swapChain->GetBuffer(0, IID_PPV_ARGS(&frameBuffer));
     HandleError(hr, "Couldn't get swap chain buffer!", cleanup);
-    context->CopyResource(copiedFrame, frameBuffer);  //! currently fails cause copied frame is null
-    // D3D11_TEXTURE2D_DESC textureDesc;
-    // device->CreateTexture2D(&textureDesc, NULL, &copiedFrame);
+    D3D11_TEXTURE2D_DESC textureDesc;
+    frameBuffer->GetDesc(&textureDesc);
+    textureDesc.Usage = D3D11_USAGE_STAGING;
+    textureDesc.BindFlags = 0;
+    textureDesc.CPUAccessFlags = D3D11_CPU_ACCESS_READ;
+    hr = device->CreateTexture2D(&textureDesc, NULL, &copiedFrame);
+    HandleError(hr, "Couldn't create texture 2D!");
+    context->CopyResource(copiedFrame, frameBuffer);
     D3D11_MAPPED_SUBRESOURCE mappedResource;
     hr = context->Map(copiedFrame, 0, D3D11_MAP_READ, 0, &mappedResource);
     HandleError(hr, "Couldn't map the frame buffer!", cleanup);
