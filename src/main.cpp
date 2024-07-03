@@ -8,7 +8,7 @@
 
 #include "util.h"
 
-void CaptureDesktop();
+void CaptureWindowGDI(HWND handle);
 void CaptureWindow();
 std::string GetCommand(std::string pixelFormat);
 
@@ -26,8 +26,10 @@ int main(int argc, char* argv[]) {
     // Move to ComPtr, using Microsoft::WRL::ComPtr;, #include <wrl/client.h>
     // Test if need flush and clear state for swapchain
     // should also maybe unmap the texture
-    // CaptureDesktop();
-    CaptureWindow();
+    auto windows = GetWindows();
+    HWND window = windows.at(0);
+    CaptureWindowGDI(window);
+    // CaptureWindow();
     std::cout << "---PROGRAM END---\n\n";
     return 0;
 }
@@ -72,7 +74,7 @@ void CaptureWindow() {
     swapChainDesc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
     swapChainDesc.BufferCount = 2;
     swapChainDesc.Scaling = DXGI_SCALING_STRETCH;
-    swapChainDesc.SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD;
+    swapChainDesc.SwapEffect = DXGI_SWAP_EFFECT_FLIP_SEQUENTIAL;
     swapChainDesc.AlphaMode = DXGI_ALPHA_MODE_IGNORE;
     swapChainDesc.Flags = 0;
     hr = factory->CreateSwapChainForHwnd(device, window, &swapChainDesc, NULL, NULL, &swapChain);
@@ -111,8 +113,7 @@ void CaptureWindow() {
     cleanup();
 }
 
-void CaptureDesktop() {
-    HWND handle = NULL;
+void CaptureWindowGDI(HWND handle) {
     HDC srcDC = GetDC(handle);
     HandleError(srcDC == NULL, "GetDC failed!");
     HDC destDC =
@@ -128,13 +129,17 @@ void CaptureDesktop() {
     while (!GetAsyncKeyState(VK_RSHIFT)) {
         HGDIOBJ prevObj = SelectObject(destDC, bitmap);
         HandleError(prevObj == NULL, "SelectObject(Bitmap) failed!");
-        int result = BitBlt(destDC, 0, 0, width, height, srcDC, 0, 0, SRCCOPY);
-        HandleError(result == 0, "BitBlt failed!");
+        if (handle == NULL) {
+            int result = BitBlt(destDC, 0, 0, width, height, srcDC, 0, 0, SRCCOPY);
+            HandleError(result == 0, "BitBlt failed!");
+        } else {
+            PrintWindow(handle, destDC, 2);
+        }
         prevObj = SelectObject(destDC, prevObj);
         HandleError(prevObj == NULL, "SelectObject(Prev) failed!");
         // Fill buffer with screen data as BGR, 8bpp, last parameter is for unused color table
-        result = GetDIBits(srcDC, bitmap, 0, height, buffer.data(), (BITMAPINFO*)&infoHeader,
-                           DIB_RGB_COLORS);
+        int result = GetDIBits(srcDC, bitmap, 0, height, buffer.data(), (BITMAPINFO*)&infoHeader,
+                               DIB_RGB_COLORS);
         HandleError(result == 0, "GetDIBits failed!");
         std::fwrite(buffer.data(), sizeof(char), buffer.size(), pipe);
     }
