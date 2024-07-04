@@ -24,13 +24,13 @@ int main() {
     HandleError(height == 0, "GetSystemMetrics(Height) failed!");
     // Dpi aware
     // Figure out holding certain frames for longer or dropping frames
-    // Should also maybe unmap the texture and add cleanup to GDI method
+    // Should also maybe unmap the texture
     // If can't get swapchains to work have both GDI method and desktop dupe method with cropping
     auto windows = GetWindows();
     HWND window = windows.at(0);
     std::cout << GetWindowTitle(window) << "\n";
-    CaptureWindowGDI(window);
-    // CaptureWindowDX(window);
+    // CaptureWindowGDI(window);
+    CaptureWindowDX(window);
     std::cout << "---PROGRAM END---\n\n";
     return 0;
 }
@@ -87,8 +87,6 @@ void CaptureWindowDX(HWND window) {
     for (int i = 0; i < 5000; i++) {
         std::cout << static_cast<int>(*data);
         ++data;
-        // std::cout << +*(char*)mappedResource.pData;
-        // ++((char*)mappedResource.pData);
     }
     // FILE* pipe = _popen(GetCommand("rgba").c_str(), "wb");
     // const int size = mappedResource.RowPitch * textureDesc.Height;
@@ -100,40 +98,47 @@ void CaptureWindowDX(HWND window) {
 
 // Pass in NULL to capture the desktop instead of a specific window.
 void CaptureWindowGDI(HWND window) {
-    HDC srcDC = GetDC(window);
-    HandleError(srcDC == NULL, "GetDC failed!");
-    HDC destDC =
+    HDC srcDC = nullptr;
+    HDC destDC = nullptr;
+    HBITMAP bitmap = nullptr;
+    FILE* pipe = nullptr;
+    std::function<void()> cleanup = [&]() {
+        if (pipe != nullptr) std::fclose(pipe);
+        if (bitmap != nullptr) DeleteObject(bitmap);
+        if (destDC != nullptr) DeleteDC(destDC);
+        if (srcDC != nullptr) ReleaseDC(window, srcDC);
+    };
+    srcDC = GetDC(window);
+    HandleError(srcDC == NULL, "GetDC failed!", cleanup);
+    destDC =
         CreateCompatibleDC(srcDC);  // Place in memory that we're gonna copy the actual screen to
-    HandleError(destDC == NULL, "CreateCompatibleDC failed!");
-    HBITMAP bitmap = CreateCompatibleBitmap(srcDC, width, height);
-    HandleError(bitmap == NULL, "CreateCompatibleBitmap failed!");
+    HandleError(destDC == NULL, "CreateCompatibleDC failed!", cleanup);
+    bitmap = CreateCompatibleBitmap(srcDC, width, height);
+    HandleError(bitmap == NULL, "CreateCompatibleBitmap failed!", cleanup);
     BITMAPINFOHEADER infoHeader = {sizeof(infoHeader), width, -height, 1, 24, BI_RGB};
     std::vector<char> buffer(
         std::abs(infoHeader.biWidth * infoHeader.biHeight * (infoHeader.biBitCount / CHAR_BIT)));
     // Bitmaps are stored as BGR, BI_RGB simply means uncompressed data.
-    FILE* pipe = _popen(GetCommand("bgr24").c_str(), "wb");
+    pipe = _popen(GetCommand("bgr24").c_str(), "wb");
     while (!GetAsyncKeyState(VK_RSHIFT)) {
         HGDIOBJ prevObj = SelectObject(destDC, bitmap);
-        HandleError(prevObj == NULL, "SelectObject(Bitmap) failed!");
+        HandleError(prevObj == NULL, "SelectObject(Bitmap) failed!", cleanup);
         if (window == NULL) {
             int result = BitBlt(destDC, 0, 0, width, height, srcDC, 0, 0, SRCCOPY);
-            HandleError(result == 0, "BitBlt failed!");
+            HandleError(result == 0, "BitBlt failed!", cleanup);
         } else {
             int result = PrintWindow(window, destDC, PW_RENDERFULLCONTENT);
-            HandleError(result == 0, "PrintWindow Failed!");
+            HandleError(result == 0, "PrintWindow Failed!", cleanup);
         }
         prevObj = SelectObject(destDC, prevObj);
-        HandleError(prevObj == NULL, "SelectObject(Prev) failed!");
+        HandleError(prevObj == NULL, "SelectObject(Prev) failed!", cleanup);
         // Fill buffer with screen data as BGR, 8bpp, last parameter is for unused color table
         int result = GetDIBits(srcDC, bitmap, 0, height, buffer.data(), (BITMAPINFO*)&infoHeader,
                                DIB_RGB_COLORS);
-        HandleError(result == 0, "GetDIBits failed!");
+        HandleError(result == 0, "GetDIBits failed!", cleanup);
         std::fwrite(buffer.data(), sizeof(char), buffer.size(), pipe);
     }
-    std::fclose(pipe);
-    DeleteObject(bitmap);
-    DeleteDC(destDC);
-    ReleaseDC(window, srcDC);
+    cleanup();
 }
 
 std::string GetCommand(std::string pixelFormat) {
