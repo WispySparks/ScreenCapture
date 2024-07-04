@@ -19,17 +19,18 @@ const int width = GetSystemMetrics(SM_CXVIRTUALSCREEN);
 const int height = GetSystemMetrics(SM_CYVIRTUALSCREEN);
 }
 
-int main(int argc, char* argv[]) {
+int main() {
     HandleError(width == 0, "GetSystemMetrics(Width) failed!");
     HandleError(height == 0, "GetSystemMetrics(Height) failed!");
-    // https://stackoverflow.com/questions/76567120/capturing-a-window-on-win-10-without-winrt
-    // https://github.com/microsoft/DirectXTK/blob/main/Src/ScreenGrab.cpp
-    // should also maybe unmap the texture
+    // Dpi aware
+    // Figure out holding certain frames for longer or dropping frames
+    // Should also maybe unmap the texture and add cleanup to GDI method
+    // If can't get swapchains to work have both GDI method and desktop dupe method with cropping
     auto windows = GetWindows();
     HWND window = windows.at(0);
     std::cout << GetWindowTitle(window) << "\n";
-    // CaptureWindowGDI(window);
-    CaptureWindowDX(window);
+    CaptureWindowGDI(window);
+    // CaptureWindowDX(window);
     std::cout << "---PROGRAM END---\n\n";
     return 0;
 }
@@ -118,7 +119,7 @@ void CaptureWindowGDI(HWND window) {
             int result = BitBlt(destDC, 0, 0, width, height, srcDC, 0, 0, SRCCOPY);
             HandleError(result == 0, "BitBlt failed!");
         } else {
-            int result = PrintWindow(window, destDC, 2);
+            int result = PrintWindow(window, destDC, PW_RENDERFULLCONTENT);
             HandleError(result == 0, "PrintWindow Failed!");
         }
         prevObj = SelectObject(destDC, prevObj);

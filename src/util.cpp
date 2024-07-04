@@ -15,10 +15,11 @@ void HandleError(HRESULT hr, std::string msg, std::function<void()> beforeExit =
     }
 }
 
-void HandleError(bool failed, std::string msg) {
+void HandleError(bool failed, std::string msg, std::function<void()> beforeExit = {}) {
     if (failed) {
         DWORD code = GetLastError();
         std::cerr << "Error: 0x" << std::hex << code << ", " << msg << "\n";
+        beforeExit();
         exit(code);
     }
 }

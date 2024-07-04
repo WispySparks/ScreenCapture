@@ -8,7 +8,7 @@
 #include <vector>
 
 void HandleError(HRESULT hr, std::string msg, std::function<void()> beforeExit = {});
-void HandleError(bool failed, std::string msg);
+void HandleError(bool failed, std::string msg, std::function<void()> beforeExit = {});
 std::string GetWindowTitle(HWND window);
 std::vector<HWND> GetWindows();
 
