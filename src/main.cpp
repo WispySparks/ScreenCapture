@@ -48,6 +48,7 @@ void CaptureWindowDD(HWND window) {
     ComPtr<IDXGIOutputDuplication> duplication{};
     ComPtr<IDXGIResource> resource{};
     ComPtr<ID3D11Texture2D> frame{};
+    ComPtr<ID3D11Texture2D> copiedFrame{};
     UINT deviceFlags = D3D11_CREATE_DEVICE_BGRA_SUPPORT;
     deviceFlags |= D3D11_CREATE_DEVICE_DEBUG;  // DEBUG FLAG
     HRESULT hr = D3D11CreateDevice(NULL, D3D_DRIVER_TYPE_HARDWARE, NULL, deviceFlags, NULL, 0,
@@ -64,34 +65,44 @@ void CaptureWindowDD(HWND window) {
         outputs.push_back(tempOutput);
         ++i;
     }
-    DXGI_OUTPUT_DESC desc{};
+
+    DXGI_OUTPUT_DESC outputDesc;
     for (auto o : outputs) {
-        hr = o->GetDesc(&desc);
+        hr = o->GetDesc(&outputDesc);
         HandleError(hr, "Couldn't get DXGI_OUTPUT_DESC!");
-        std::wcout << desc.DeviceName << "\n";
+        std::wcout << outputDesc.DeviceName << "\n";
     }
+
     hr = outputs.at(0)->QueryInterface(output.GetAddressOf());
     HandleError(hr, "Couldn't get IDXGIOutput1!");
     hr = output->DuplicateOutput(device.Get(), &duplication);
     HandleError(hr, "Couldn't get IDXGIOutputDuplication!");
-    std::cout << timeoutMS << "\n";
     DXGI_OUTDUPL_FRAME_INFO frameInfo;
     hr = duplication->AcquireNextFrame(timeoutMS, &frameInfo, &resource);
+    std::cout << std::hex << hr << "\n";
+    std::cout << frameInfo.LastPresentTime.QuadPart << "\n";
     HandleError(hr, "Couldn't get IDXGIResource!");
     hr = resource->QueryInterface(frame.GetAddressOf());
     HandleError(hr, "Couldn't get ID3D11Texture2D!");
-    D3D11_TEXTURE2D_DESC tdesc;
-    frame->GetDesc(&tdesc);
-    std::wcout << tdesc.Width << "\n";
-    std::wcout << tdesc.Height << "\n";
-    std::wcout << tdesc.Usage << "\n";
-    std::wcout << tdesc.Format << "\n";
+    D3D11_TEXTURE2D_DESC textureDesc;
+    frame->GetDesc(&textureDesc);
+    std::wcout << textureDesc.Width << "\n";
+    std::wcout << textureDesc.Height << "\n";
+    std::wcout << textureDesc.Usage << "\n";
+    std::wcout << std::hex << textureDesc.Format << "\n";
+    textureDesc.Usage = D3D11_USAGE_STAGING;
+    textureDesc.BindFlags = 0;
+    textureDesc.CPUAccessFlags = D3D11_CPU_ACCESS_READ;
+    textureDesc.MiscFlags = 0;
+    hr = device->CreateTexture2D(&textureDesc, NULL, &copiedFrame);
+    HandleError(hr, "Couldn't create texture 2D!");
+    context->CopyResource(copiedFrame.Get(), frame.Get());
     D3D11_MAPPED_SUBRESOURCE mappedResource;
-    hr = context->Map(frame.Get(), 0, D3D11_MAP_READ, 0,
+    hr = context->Map(copiedFrame.Get(), 0, D3D11_MAP_READ, 0,
                       &mappedResource);  // Need to make a copy before I read it
     HandleError(hr, "Couldn't map the frame buffer!");
 
-    const int size = mappedResource.RowPitch * tdesc.Height;
+    const int size = mappedResource.RowPitch * textureDesc.Height;
     std::vector<uint8_t> buffer(static_cast<uint8_t*>(mappedResource.pData),
                                 static_cast<uint8_t*>(mappedResource.pData) + size);
     auto data = (char*)mappedResource.pData;
