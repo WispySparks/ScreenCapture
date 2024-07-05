@@ -12,11 +12,13 @@ using Microsoft::WRL::ComPtr;
 
 void CaptureWindowGDI(HWND window);
 void CaptureWindowDX(HWND window);
+void CaptureWindowDD(HWND window);
 std::string GetCommand(std::string pixelFormat);
 
 namespace {
 const int width = GetSystemMetrics(SM_CXVIRTUALSCREEN);
 const int height = GetSystemMetrics(SM_CYVIRTUALSCREEN);
+const int timeoutMS = static_cast<int>(1.0 / 30.0 * 1000);
 }
 
 int main() {
@@ -30,9 +32,73 @@ int main() {
     HWND window = windows.at(0);
     std::cout << GetWindowTitle(window) << "\n";
     // CaptureWindowGDI(window);
-    CaptureWindowDX(window);
+    // CaptureWindowDX(window);
+    CaptureWindowDD(window);
     std::cout << "---PROGRAM END---\n\n";
     return 0;
+}
+
+void CaptureWindowDD(HWND window) {
+    ComPtr<ID3D11Device> device{};
+    ComPtr<ID3D11DeviceContext> context{};
+    ComPtr<IDXGIDevice> idxgiDevice{};
+    ComPtr<IDXGIAdapter> adapter{};
+    std::vector<ComPtr<IDXGIOutput>> outputs{};
+    ComPtr<IDXGIOutput1> output{};
+    ComPtr<IDXGIOutputDuplication> duplication{};
+    ComPtr<IDXGIResource> resource{};
+    ComPtr<ID3D11Texture2D> frame{};
+    UINT deviceFlags = D3D11_CREATE_DEVICE_BGRA_SUPPORT;
+    deviceFlags |= D3D11_CREATE_DEVICE_DEBUG;  // DEBUG FLAG
+    HRESULT hr = D3D11CreateDevice(NULL, D3D_DRIVER_TYPE_HARDWARE, NULL, deviceFlags, NULL, 0,
+                                   D3D11_SDK_VERSION, &device, NULL, &context);
+    HandleError(hr, "Couldn't create ID3D11Device!");
+    hr = device->QueryInterface(idxgiDevice.GetAddressOf());
+    HandleError(hr, "Couldn't create IDXGIDevice!");
+    hr = idxgiDevice->GetAdapter(&adapter);
+    HandleError(hr, "Couldn't get IDXGIAdapter!");
+    ComPtr<IDXGIOutput> tempOutput;
+    int i = 0;
+    while ((hr = adapter->EnumOutputs(i, &tempOutput)) != DXGI_ERROR_NOT_FOUND) {
+        HandleError(hr, "Couldn't enumerate output!");
+        outputs.push_back(tempOutput);
+        ++i;
+    }
+    DXGI_OUTPUT_DESC desc{};
+    for (auto o : outputs) {
+        hr = o->GetDesc(&desc);
+        HandleError(hr, "Couldn't get DXGI_OUTPUT_DESC!");
+        std::wcout << desc.DeviceName << "\n";
+    }
+    hr = outputs.at(0)->QueryInterface(output.GetAddressOf());
+    HandleError(hr, "Couldn't get IDXGIOutput1!");
+    hr = output->DuplicateOutput(device.Get(), &duplication);
+    HandleError(hr, "Couldn't get IDXGIOutputDuplication!");
+    std::cout << timeoutMS << "\n";
+    DXGI_OUTDUPL_FRAME_INFO frameInfo;
+    hr = duplication->AcquireNextFrame(timeoutMS, &frameInfo, &resource);
+    HandleError(hr, "Couldn't get IDXGIResource!");
+    hr = resource->QueryInterface(frame.GetAddressOf());
+    HandleError(hr, "Couldn't get ID3D11Texture2D!");
+    D3D11_TEXTURE2D_DESC tdesc;
+    frame->GetDesc(&tdesc);
+    std::wcout << tdesc.Width << "\n";
+    std::wcout << tdesc.Height << "\n";
+    std::wcout << tdesc.Usage << "\n";
+    std::wcout << tdesc.Format << "\n";
+    D3D11_MAPPED_SUBRESOURCE mappedResource;
+    hr = context->Map(frame.Get(), 0, D3D11_MAP_READ, 0,
+                      &mappedResource);  // Need to make a copy before I read it
+    HandleError(hr, "Couldn't map the frame buffer!");
+
+    const int size = mappedResource.RowPitch * tdesc.Height;
+    std::vector<uint8_t> buffer(static_cast<uint8_t*>(mappedResource.pData),
+                                static_cast<uint8_t*>(mappedResource.pData) + size);
+    auto data = (char*)mappedResource.pData;
+    for (int i = 0; i < 5000; i++) {
+        std::cout << static_cast<int>(*data);
+        ++data;
+    }
 }
 
 void CaptureWindowDX(HWND window) {
