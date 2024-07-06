@@ -6,20 +6,20 @@
 #include <iostream>
 #include <vector>
 
-#include "util.h"
+#include "util.hpp"
+#include "wgc.hpp"
 
-using Microsoft::WRL::ComPtr;
-
-void CaptureWindowGDI(HWND window);
-void CaptureWindowDX(HWND window);
 void CaptureWindowDD(HWND window);
+void CaptureWindowDX(HWND window);
+void CaptureWindowGDI(HWND window);
 std::string GetCommand(std::string pixelFormat);
 
 namespace {
 const int width = GetSystemMetrics(SM_CXVIRTUALSCREEN);
 const int height = GetSystemMetrics(SM_CYVIRTUALSCREEN);
-const int timeoutMS = static_cast<int>(1.0 / 30.0 * 1000);
 }
+
+using Microsoft::WRL::ComPtr;
 
 int main() {
     HandleError(width == 0, "GetSystemMetrics(Width) failed!");
@@ -31,14 +31,16 @@ int main() {
     auto windows = GetWindows();
     HWND window = windows.at(0);
     std::cout << GetWindowTitle(window) << "\n";
-    // CaptureWindowGDI(window);
+    CaptureWindowWGC(window);
+    // CaptureWindowDD(window);
     // CaptureWindowDX(window);
-    CaptureWindowDD(window);
-    std::cout << "---PROGRAM END---\n\n";
+    // CaptureWindowGDI(window);
+    std::cout << "\n---PROGRAM END---\n\n";
     return 0;
 }
 
 void CaptureWindowDD(HWND window) {
+    const int timeoutMS = static_cast<int>(1.0 / 30.0 * 1000);
     ComPtr<ID3D11Device> device{};
     ComPtr<ID3D11DeviceContext> context{};
     ComPtr<IDXGIDevice> idxgiDevice{};
