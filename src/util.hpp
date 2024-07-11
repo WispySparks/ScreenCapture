@@ -10,8 +10,9 @@
 
 void HandleError(HRESULT hr, std::string msg, std::function<void()> beforeExit = {});
 void HandleError(bool failed, std::string msg, std::function<void()> beforeExit = {});
-std::string GetWindowTitle(HWND window);
+std::string GetWindowName(HWND window);
 std::vector<HWND> GetWindows();
+std::string GetDisplayName(HMONITOR display);
 std::vector<HMONITOR> GetDisplays();
 inline std::string GetCommand(std::string pixelFormat, int width, int height) {
     return std::format(

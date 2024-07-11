@@ -24,7 +24,7 @@ void HandleError(bool failed, std::string msg, std::function<void()> beforeExit 
     }
 }
 
-std::string GetWindowTitle(HWND window) {
+std::string GetWindowName(HWND window) {
     int length = GetWindowTextLengthA(window) + 1;
     std::vector<char> title(length);
     GetWindowTextA(window, title.data(), length);
@@ -37,13 +37,20 @@ std::vector<HWND> GetWindows() {
         [](HWND window, LPARAM lParam) {
             std::vector<HWND>* windows = reinterpret_cast<std::vector<HWND>*>(lParam);
             if (IsWindowVisible(window) && GetWindowTextLengthA(window) > 0 &&
-                GetWindowTitle(window) != "Program Manager") {
+                GetWindowName(window) != "Program Manager") {
                 windows->push_back(window);
             }
             return TRUE;
         },
         reinterpret_cast<LPARAM>(&windows));
     return windows;
+}
+
+std::string GetDisplayName(HMONITOR display) {
+    MONITORINFOEXA info{sizeof(MONITORINFOEXA)};
+    int result = GetMonitorInfoA(display, &info);
+    HandleError(result == 0, "Couldn't get display name!");
+    return std::string{info.szDevice};
 }
 
 std::vector<HMONITOR> GetDisplays() {
