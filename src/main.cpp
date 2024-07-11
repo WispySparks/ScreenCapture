@@ -2,7 +2,6 @@
 #include <dxgi1_3.h>
 #include <wrl/client.h>
 
-#include <format>
 #include <iostream>
 #include <vector>
 
@@ -12,7 +11,6 @@
 void CaptureWindowDD(HWND window);
 void CaptureWindowDX(HWND window);
 void CaptureWindowGDI(HWND window);
-std::string GetCommand(std::string pixelFormat);
 
 namespace {
 const int width = GetSystemMetrics(SM_CXVIRTUALSCREEN);
@@ -26,12 +24,12 @@ int main() {
     HandleError(height == 0, "GetSystemMetrics(Height) failed!");
     // Dpi aware
     // Figure out holding certain frames for longer or dropping frames
-    // Should also maybe unmap the texture
-    // If can't get swapchains to work have both GDI method and desktop dupe method with cropping
-    auto windows = GetWindows();
-    HWND window = windows.at(0);
-    std::cout << GetWindowTitle(window) << "\n";
-    CaptureWindowWGC(window);
+    // auto windows = GetWindows();
+    // HWND window = windows.at(0);
+    // std::cout << GetWindowTitle(window) << "\n";
+    auto displays = GetDisplays();
+    HMONITOR display = displays.at(0);
+    CaptureDisplayWGC(display);
     // CaptureWindowDD(window);
     // CaptureWindowDX(window);
     // CaptureWindowGDI(window);
@@ -198,7 +196,7 @@ void CaptureWindowGDI(HWND window) {
     std::vector<char> buffer(
         std::abs(infoHeader.biWidth * infoHeader.biHeight * (infoHeader.biBitCount / CHAR_BIT)));
     // Bitmaps are stored as BGR, BI_RGB simply means uncompressed data.
-    pipe = _popen(GetCommand("bgr24").c_str(), "wb");
+    pipe = _popen(GetCommand("bgr24", width, height).c_str(), "wb");
     while (!GetAsyncKeyState(VK_RSHIFT)) {
         HGDIOBJ prevObj = SelectObject(destDC, bitmap);
         HandleError(prevObj == NULL, "SelectObject(Bitmap) failed!", cleanup);
@@ -218,11 +216,4 @@ void CaptureWindowGDI(HWND window) {
         std::fwrite(buffer.data(), sizeof(char), buffer.size(), pipe);
     }
     cleanup();
-}
-
-std::string GetCommand(std::string pixelFormat) {
-    return std::format(
-        "ffmpeg -hide_banner -y -f rawvideo -pix_fmt {} -s {}x{} -i - -c:v "
-        "libx264 -pix_fmt yuv420p -r 30 -an out_vid.mp4",
-        pixelFormat, width, height);
 }

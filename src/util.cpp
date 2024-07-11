@@ -45,3 +45,16 @@ std::vector<HWND> GetWindows() {
         reinterpret_cast<LPARAM>(&windows));
     return windows;
 }
+
+std::vector<HMONITOR> GetDisplays() {
+    std::vector<HMONITOR> displays;
+    EnumDisplayMonitors(
+        NULL, NULL,
+        [](HMONITOR display, HDC, LPRECT, LPARAM lParam) {
+            std::vector<HMONITOR>* displays = reinterpret_cast<std::vector<HMONITOR>*>(lParam);
+            displays->push_back(display);
+            return TRUE;
+        },
+        reinterpret_cast<LPARAM>(&displays));
+    return displays;
+}

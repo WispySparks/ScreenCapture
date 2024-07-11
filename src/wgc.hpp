@@ -3,6 +3,6 @@
 
 #include <windows.h>
 
-void CaptureWindowWGC(HWND window);
+void CaptureDisplayWGC(HMONITOR display);
 
 #endif
