@@ -1,6 +1,6 @@
 #include <d3d11.h>
 #include <dxgi1_3.h>
-#include <wrl/client.h>
+#include <winrt/base.h>
 
 #include <iostream>
 #include <vector>
@@ -17,7 +17,7 @@ const int width = GetSystemMetrics(SM_CXVIRTUALSCREEN);
 const int height = GetSystemMetrics(SM_CYVIRTUALSCREEN);
 }
 
-using Microsoft::WRL::ComPtr;
+using winrt::com_ptr;
 
 int main() {
     HandleError(width == 0, "GetSystemMetrics(Width) failed!");
@@ -40,28 +40,28 @@ int main() {
 
 void CaptureWindowDD(HWND window) {
     const int timeoutMS = static_cast<int>(1.0 / 30.0 * 1000);
-    ComPtr<ID3D11Device> device{};
-    ComPtr<ID3D11DeviceContext> context{};
-    ComPtr<IDXGIDevice> idxgiDevice{};
-    ComPtr<IDXGIAdapter> adapter{};
-    std::vector<ComPtr<IDXGIOutput>> outputs{};
-    ComPtr<IDXGIOutput1> output{};
-    ComPtr<IDXGIOutputDuplication> duplication{};
-    ComPtr<IDXGIResource> resource{};
-    ComPtr<ID3D11Texture2D> frame{};
-    ComPtr<ID3D11Texture2D> copiedFrame{};
+    com_ptr<ID3D11Device> device{};
+    com_ptr<ID3D11DeviceContext> context{};
+    com_ptr<IDXGIDevice> idxgiDevice{};
+    com_ptr<IDXGIAdapter> adapter{};
+    std::vector<com_ptr<IDXGIOutput>> outputs{};
+    com_ptr<IDXGIOutput1> output{};
+    com_ptr<IDXGIOutputDuplication> duplication{};
+    com_ptr<IDXGIResource> resource{};
+    com_ptr<ID3D11Texture2D> frame{};
+    com_ptr<ID3D11Texture2D> copiedFrame{};
     UINT deviceFlags = D3D11_CREATE_DEVICE_BGRA_SUPPORT;
     deviceFlags |= D3D11_CREATE_DEVICE_DEBUG;  // DEBUG FLAG
     HRESULT hr = D3D11CreateDevice(NULL, D3D_DRIVER_TYPE_HARDWARE, NULL, deviceFlags, NULL, 0,
-                                   D3D11_SDK_VERSION, &device, NULL, &context);
+                                   D3D11_SDK_VERSION, device.put(), NULL, context.put());
     HandleError(hr, "Couldn't create ID3D11Device!");
-    hr = device->QueryInterface(idxgiDevice.GetAddressOf());
+    hr = device->QueryInterface(idxgiDevice.put());
     HandleError(hr, "Couldn't create IDXGIDevice!");
-    hr = idxgiDevice->GetAdapter(&adapter);
+    hr = idxgiDevice->GetAdapter(adapter.put());
     HandleError(hr, "Couldn't get IDXGIAdapter!");
-    ComPtr<IDXGIOutput> tempOutput;
+    com_ptr<IDXGIOutput> tempOutput;
     int i = 0;
-    while ((hr = adapter->EnumOutputs(i, &tempOutput)) != DXGI_ERROR_NOT_FOUND) {
+    while ((hr = adapter->EnumOutputs(i, tempOutput.put())) != DXGI_ERROR_NOT_FOUND) {
         HandleError(hr, "Couldn't enumerate output!");
         outputs.push_back(tempOutput);
         ++i;
@@ -74,16 +74,16 @@ void CaptureWindowDD(HWND window) {
         std::wcout << outputDesc.DeviceName << "\n";
     }
 
-    hr = outputs.at(0)->QueryInterface(output.GetAddressOf());
+    hr = outputs.at(0)->QueryInterface(output.put());
     HandleError(hr, "Couldn't get IDXGIOutput1!");
-    hr = output->DuplicateOutput(device.Get(), &duplication);
+    hr = output->DuplicateOutput(device.get(), duplication.put());
     HandleError(hr, "Couldn't get IDXGIOutputDuplication!");
     DXGI_OUTDUPL_FRAME_INFO frameInfo;
-    hr = duplication->AcquireNextFrame(timeoutMS, &frameInfo, &resource);
+    hr = duplication->AcquireNextFrame(timeoutMS, &frameInfo, resource.put());
     std::cout << std::hex << hr << "\n";
     std::cout << frameInfo.LastPresentTime.QuadPart << "\n";
     HandleError(hr, "Couldn't get IDXGIResource!");
-    hr = resource->QueryInterface(frame.GetAddressOf());
+    hr = resource->QueryInterface(frame.put());
     HandleError(hr, "Couldn't get ID3D11Texture2D!");
     D3D11_TEXTURE2D_DESC textureDesc;
     frame->GetDesc(&textureDesc);
@@ -95,18 +95,18 @@ void CaptureWindowDD(HWND window) {
     textureDesc.BindFlags = 0;
     textureDesc.CPUAccessFlags = D3D11_CPU_ACCESS_READ;
     textureDesc.MiscFlags = 0;
-    hr = device->CreateTexture2D(&textureDesc, NULL, &copiedFrame);
+    hr = device->CreateTexture2D(&textureDesc, NULL, copiedFrame.put());
     HandleError(hr, "Couldn't create texture 2D!");
-    context->CopyResource(copiedFrame.Get(), frame.Get());
+    context->CopyResource(copiedFrame.get(), frame.get());
     D3D11_MAPPED_SUBRESOURCE mappedResource;
-    hr = context->Map(copiedFrame.Get(), 0, D3D11_MAP_READ, 0,
+    hr = context->Map(copiedFrame.get(), 0, D3D11_MAP_READ, 0,
                       &mappedResource);  // Need to make a copy before I read it
     HandleError(hr, "Couldn't map the frame buffer!");
 
     const int size = mappedResource.RowPitch * textureDesc.Height;
     std::vector<uint8_t> buffer(static_cast<uint8_t*>(mappedResource.pData),
                                 static_cast<uint8_t*>(mappedResource.pData) + size);
-    auto data = (char*)mappedResource.pData;
+    auto data = static_cast<char*>(mappedResource.pData);
     for (int i = 0; i < 5000; i++) {
         std::cout << static_cast<int>(*data);
         ++data;
@@ -114,16 +114,16 @@ void CaptureWindowDD(HWND window) {
 }
 
 void CaptureWindowDX(HWND window) {
-    ComPtr<ID3D11Device> device = nullptr;
-    ComPtr<ID3D11DeviceContext> context = nullptr;
-    ComPtr<IDXGIFactory2> factory = nullptr;
-    ComPtr<IDXGISwapChain1> swapChain = nullptr;
-    ComPtr<ID3D11Texture2D> frameBuffer = nullptr;
-    ComPtr<ID3D11Texture2D> copiedFrame = nullptr;
+    com_ptr<ID3D11Device> device = nullptr;
+    com_ptr<ID3D11DeviceContext> context = nullptr;
+    com_ptr<IDXGIFactory2> factory = nullptr;
+    com_ptr<IDXGISwapChain1> swapChain = nullptr;
+    com_ptr<ID3D11Texture2D> frameBuffer = nullptr;
+    com_ptr<ID3D11Texture2D> copiedFrame = nullptr;
     UINT deviceFlags = D3D11_CREATE_DEVICE_BGRA_SUPPORT;
     deviceFlags |= D3D11_CREATE_DEVICE_DEBUG;  // DEBUG FLAG
     HRESULT hr = D3D11CreateDevice(NULL, D3D_DRIVER_TYPE_HARDWARE, NULL, deviceFlags, NULL, 0,
-                                   D3D11_SDK_VERSION, &device, NULL, &context);
+                                   D3D11_SDK_VERSION, device.put(), NULL, context.put());
     HandleError(hr, "Couldn't create device!");
     UINT factoryflags = 0;
     factoryflags |= DXGI_CREATE_FACTORY_DEBUG;  // DEBUG FLAG
@@ -141,8 +141,8 @@ void CaptureWindowDX(HWND window) {
     swapChainDesc.SwapEffect = DXGI_SWAP_EFFECT_FLIP_SEQUENTIAL;
     swapChainDesc.AlphaMode = DXGI_ALPHA_MODE_IGNORE;
     swapChainDesc.Flags = 0;
-    hr = factory->CreateSwapChainForHwnd(device.Get(), window, &swapChainDesc, NULL, NULL,
-                                         &swapChain);
+    hr = factory->CreateSwapChainForHwnd(device.get(), window, &swapChainDesc, NULL, NULL,
+                                         swapChain.put());
     HandleError(hr, "Couldn't create swap chain!");
     hr = swapChain->GetBuffer(0, IID_PPV_ARGS(&frameBuffer));
     HandleError(hr, "Couldn't get swap chain buffer!");
@@ -151,22 +151,22 @@ void CaptureWindowDX(HWND window) {
     textureDesc.Usage = D3D11_USAGE_STAGING;
     textureDesc.BindFlags = 0;
     textureDesc.CPUAccessFlags = D3D11_CPU_ACCESS_READ;
-    hr = device->CreateTexture2D(&textureDesc, NULL, &copiedFrame);
+    hr = device->CreateTexture2D(&textureDesc, NULL, copiedFrame.put());
     HandleError(hr, "Couldn't create texture 2D!");
-    context->CopyResource(copiedFrame.Get(), frameBuffer.Get());
+    context->CopyResource(copiedFrame.get(), frameBuffer.get());
     D3D11_MAPPED_SUBRESOURCE mappedResource;
-    hr = context->Map(copiedFrame.Get(), 0, D3D11_MAP_READ, 0, &mappedResource);
+    hr = context->Map(copiedFrame.get(), 0, D3D11_MAP_READ, 0, &mappedResource);
     HandleError(hr, "Couldn't map the frame buffer!");
 
     const int size = mappedResource.RowPitch * textureDesc.Height;
     std::vector<uint8_t> buffer(static_cast<uint8_t*>(mappedResource.pData),
                                 static_cast<uint8_t*>(mappedResource.pData) + size);
-    auto data = (char*)mappedResource.pData;
+    auto data = static_cast<char*>(mappedResource.pData);
     for (int i = 0; i < 5000; i++) {
         std::cout << static_cast<int>(*data);
         ++data;
     }
-    // FILE* pipe = _popen(GetCommand("rgba").c_str(), "wb");
+    // FILE* pipe = _popen(GetCommand("rgba", width, height, 30).c_str(), "wb");
     // const int size = mappedResource.RowPitch * textureDesc.Height;
     // while (!GetAsyncKeyState(VK_RSHIFT)) {
     //     std::fwrite(mappedResource.pData, sizeof(char), size, pipe);
@@ -197,7 +197,7 @@ void CaptureWindowGDI(HWND window) {
     std::vector<char> buffer(
         std::abs(infoHeader.biWidth * infoHeader.biHeight * (infoHeader.biBitCount / CHAR_BIT)));
     // Bitmaps are stored as BGR, BI_RGB simply means uncompressed data.
-    pipe = _popen(GetCommand("bgr24", width, height).c_str(), "wb");
+    pipe = _popen(GetCommand("bgr24", width, height, 30).c_str(), "wb");
     while (!GetAsyncKeyState(VK_RSHIFT)) {
         HGDIOBJ prevObj = SelectObject(destDC, bitmap);
         HandleError(prevObj == NULL, "SelectObject(Bitmap) failed!", cleanup);

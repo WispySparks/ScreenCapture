@@ -3,7 +3,7 @@
 
 #include <iostream>
 
-#include "util.h"
+#include "util.hpp"
 
 WCHAR* getDeviceName(IMFAttributes* device);
 void video() {

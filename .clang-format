@@ -102,7 +102,7 @@ Cpp11BracedListStyle: true
 DerivePointerAlignment: false
 DisableFormat:   false
 EmptyLineAfterAccessModifier: Never
-EmptyLineBeforeAccessModifier: Never
+EmptyLineBeforeAccessModifier: LogicalBlock
 ExperimentalAutoDetectBinPacking: false
 FixNamespaceComments: false
 ForEachMacros:
@@ -131,7 +131,7 @@ IncludeCategories:
     CaseSensitive:   false
 IncludeIsMainRegex: '([-_](test|unittest))?$'
 IncludeIsMainSourceRegex: ''
-IndentAccessModifiers: true
+IndentAccessModifiers: false
 IndentCaseBlocks: false
 IndentCaseLabels: true
 IndentExternBlock: AfterExternBlock
