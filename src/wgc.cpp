@@ -58,14 +58,12 @@ void OnFrameArrived(const winrt::Direct3D11CaptureFramePool& framePool,
     frame.Close();
 }
 
-void CaptureDisplayWGC(HMONITOR display) {
+void CaptureWGC(winrt::GraphicsCaptureItem item, bool captureCursor) {
     winrt::GraphicsCaptureAccess::RequestAccessAsync(winrt::GraphicsCaptureAccessKind::Borderless)
         .get();
     com_ptr<IDXGIDevice> idxgiDevice{};
     winrt::IDirect3DDevice iDevice{};
     winrt::DirectXPixelFormat pixelFormat{winrt::DirectXPixelFormat::B8G8R8A8UIntNormalized};
-    winrt::GraphicsCaptureItem item =
-        winrt::GraphicsCaptureItem::TryCreateFromDisplayId({reinterpret_cast<uint64_t>(display)});
     UINT deviceFlags = D3D11_CREATE_DEVICE_BGRA_SUPPORT;
     deviceFlags |= D3D11_CREATE_DEVICE_DEBUG;  // DEBUG FLAG
     HRESULT hr = D3D11CreateDevice(NULL, D3D_DRIVER_TYPE_HARDWARE, NULL, deviceFlags, NULL, 0,
@@ -81,9 +79,21 @@ void CaptureDisplayWGC(HMONITOR display) {
     framePool.FrameArrived(&OnFrameArrived);
     winrt::GraphicsCaptureSession session = framePool.CreateCaptureSession(item);
     session.IsBorderRequired(false);
+    session.IsCursorCaptureEnabled(captureCursor);
     pipe = _popen(GetCommand("bgra", item.Size().Width, item.Size().Height, 60).c_str(), "wb");
     session.StartCapture();
     while (!GetAsyncKeyState(VK_RSHIFT)) {
     }
     std::fclose(pipe);
+}
+
+void CaptureDisplayWGC(HMONITOR display, bool captureCursor) {
+    CaptureWGC(
+        winrt::GraphicsCaptureItem::TryCreateFromDisplayId({reinterpret_cast<uint64_t>(display)}),
+        captureCursor);
+}
+void CaptureWindowWGC(HWND window, bool captureCursor) {
+    CaptureWGC(
+        winrt::GraphicsCaptureItem::TryCreateFromWindowId({reinterpret_cast<uint64_t>(window)}),
+        captureCursor);
 }

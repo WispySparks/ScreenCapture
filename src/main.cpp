@@ -30,7 +30,7 @@ int main() {
     auto displays = GetDisplays();
     HMONITOR display = displays.at(0);
     std::cout << GetDisplayName(display) << "\n";
-    CaptureDisplayWGC(display);
+    CaptureDisplayWGC(display, true);
     // CaptureWindowDD(window);
     // CaptureWindowDX(window);
     // CaptureWindowGDI(window);
