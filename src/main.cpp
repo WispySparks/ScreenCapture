@@ -24,13 +24,14 @@ int main() {
     HandleError(height == 0, "GetSystemMetrics(Height) failed!");
     // Dpi aware
     // Figure out holding certain frames for longer or dropping frames
-    // auto windows = GetWindows();
-    // HWND window = windows.at(0);
-    // std::cout << GetWindowName(window) << "\n";
+    auto windows = GetWindows();
+    HWND window = windows.at(0);
+    std::cout << GetWindowName(window) << "\n";
     auto displays = GetDisplays();
     HMONITOR display = displays.at(0);
     std::cout << GetDisplayName(display) << "\n";
     CaptureDisplayWGC(display, true);
+    // CaptureWindowWGC(window, true);
     // CaptureWindowDD(window);
     // CaptureWindowDX(window);
     // CaptureWindowGDI(window);

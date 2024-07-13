@@ -55,6 +55,7 @@ void OnFrameArrived(const winrt::Direct3D11CaptureFramePool& framePool,
                                 static_cast<uint8_t*>(mappedResource.pData) + size);
     std::fwrite(buffer.data(), sizeof(uint8_t), buffer.size(), pipe);
 
+    rtSurface.Close();
     frame.Close();
 }
 
@@ -84,6 +85,9 @@ void CaptureWGC(winrt::GraphicsCaptureItem item, bool captureCursor) {
     session.StartCapture();
     while (!GetAsyncKeyState(VK_RSHIFT)) {
     }
+    session.Close();
+    framePool.Close();
+    iDevice.Close();
     std::fclose(pipe);
 }
 
