@@ -16,8 +16,8 @@ std::string GetDisplayName(HMONITOR display);
 std::vector<HMONITOR> GetDisplays();
 inline std::string GetCommand(std::string pixelFormat, int width, int height, int fps) {
     return std::format(
-        "ffmpeg -hide_banner -y -f rawvideo -pix_fmt {} -s {}x{} -i - -c:v "
-        "libx264 -pix_fmt yuv420p -r {} -an out_vid.mp4",
+        "ffmpeg -hide_banner -y -f rawvideo -pix_fmt {} -s {}x{} -r {} -i - -c:v "
+        "libx264 -pix_fmt yuv420p -an out_vid.mp4",
         pixelFormat, width, height, fps);
 }
 

@@ -4,6 +4,8 @@
 #include <winrt/windows.foundation.h>
 #include <winrt/windows.graphics.capture.h>
 
+#include <iostream>
+
 #include "util.hpp"
 
 namespace winrt {
@@ -18,7 +20,7 @@ using winrt::com_ptr;
 
 com_ptr<ID3D11Device> device{};
 com_ptr<ID3D11DeviceContext> context{};
-FILE* pipe = nullptr;
+std::vector<std::vector<uint8_t>> frames{};
 
 void OnFrameArrived(const winrt::Direct3D11CaptureFramePool& framePool,
                     const winrt::IInspectable&) {
@@ -53,7 +55,7 @@ void OnFrameArrived(const winrt::Direct3D11CaptureFramePool& framePool,
     const int size = mappedResource.RowPitch * textureDesc.Height;
     std::vector<uint8_t> buffer(static_cast<uint8_t*>(mappedResource.pData),
                                 static_cast<uint8_t*>(mappedResource.pData) + size);
-    std::fwrite(buffer.data(), sizeof(uint8_t), buffer.size(), pipe);
+    frames.push_back(buffer);
 
     rtSurface.Close();
     frame.Close();
@@ -81,13 +83,21 @@ void CaptureWGC(winrt::GraphicsCaptureItem item, bool captureCursor) {
     winrt::GraphicsCaptureSession session = framePool.CreateCaptureSession(item);
     session.IsBorderRequired(false);
     session.IsCursorCaptureEnabled(captureCursor);
-    pipe = _popen(GetCommand("bgra", item.Size().Width, item.Size().Height, 60).c_str(), "wb");
+    while (!GetAsyncKeyState(VK_RSHIFT));
+    std::cout << "Beginning Recording.\n";
+    Sleep(200);
     session.StartCapture();
-    while (!GetAsyncKeyState(VK_RSHIFT)) {
-    }
+    while (!GetAsyncKeyState(VK_RSHIFT));
+    std::cout << "Stopping Recording.\n";
     session.Close();
     framePool.Close();
     iDevice.Close();
+    FILE* pipe =
+        _popen(GetCommand("bgra", item.Size().Width, item.Size().Height, 60).c_str(), "wb");
+    for (size_t i = 0; i < frames.size(); i++) {
+        auto frame = frames.at(i);
+        std::fwrite(frame.data(), sizeof(uint8_t), frame.size(), pipe);
+    }
     std::fclose(pipe);
 }
 
