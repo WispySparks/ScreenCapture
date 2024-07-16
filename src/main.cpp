@@ -24,6 +24,7 @@ int main() {
     HandleError(height == 0, "GetSystemMetrics(Height) failed!");
     // Dpi aware
     // Figure out holding certain frames for longer or dropping frames
+    // Make writing to ffmpeg faster
     auto windows = GetWindows();
     HWND window = windows.at(0);
     std::cout << GetWindowName(window) << "\n";

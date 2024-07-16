@@ -4,6 +4,7 @@
 #include <winrt/windows.foundation.h>
 #include <winrt/windows.graphics.capture.h>
 
+#include <chrono>
 #include <iostream>
 
 #include "util.hpp"
@@ -18,6 +19,7 @@ using namespace winrt::Windows::Graphics::DirectX::Direct3D11;
 
 using winrt::com_ptr;
 
+const int fps = 60;
 com_ptr<ID3D11Device> device{};
 com_ptr<ID3D11DeviceContext> context{};
 std::vector<std::vector<uint8_t>> frames{};
@@ -80,24 +82,31 @@ void CaptureWGC(winrt::GraphicsCaptureItem item, bool captureCursor) {
     winrt::Direct3D11CaptureFramePool framePool =
         winrt::Direct3D11CaptureFramePool::CreateFreeThreaded(iDevice, pixelFormat, 1, item.Size());
     framePool.FrameArrived(&OnFrameArrived);
+    while (!GetAsyncKeyState(VK_RSHIFT));
     winrt::GraphicsCaptureSession session = framePool.CreateCaptureSession(item);
     session.IsBorderRequired(false);
     session.IsCursorCaptureEnabled(captureCursor);
-    while (!GetAsyncKeyState(VK_RSHIFT));
+    session.StartCapture();
     std::cout << "Beginning Recording.\n";
     Sleep(200);
-    session.StartCapture();
     while (!GetAsyncKeyState(VK_RSHIFT));
     std::cout << "Stopping Recording.\n";
     session.Close();
     framePool.Close();
     iDevice.Close();
-    FILE* pipe =
-        _popen(GetCommand("bgra", item.Size().Width, item.Size().Height, 60).c_str(), "wb");
+    FILE* pipe = _popen(
+        GetCommand("bgra", item.Size().Width, item.Size().Height, fps, "quiet").c_str(), "wb");
+    auto start = std::chrono::system_clock::now();
     for (size_t i = 0; i < frames.size(); i++) {
         auto frame = frames.at(i);
         std::fwrite(frame.data(), sizeof(uint8_t), frame.size(), pipe);
     }
+    std::cout << "Writing video file took "
+              << std::chrono::duration_cast<std::chrono::milliseconds>(
+                     std::chrono::system_clock::now() - start)
+                         .count() /
+                     1000.0
+              << " seconds.\n";
     std::fclose(pipe);
 }
 

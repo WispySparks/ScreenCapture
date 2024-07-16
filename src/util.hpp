@@ -14,11 +14,12 @@ std::string GetWindowName(HWND window);
 std::vector<HWND> GetWindows();
 std::string GetDisplayName(HMONITOR display);
 std::vector<HMONITOR> GetDisplays();
-inline std::string GetCommand(std::string pixelFormat, int width, int height, int fps) {
+inline std::string GetCommand(std::string pixelFormat, int width, int height, int fps,
+                              std::string loglevel = "info") {
     return std::format(
-        "ffmpeg -hide_banner -y -f rawvideo -pix_fmt {} -s {}x{} -r {} -i - -c:v "
+        "ffmpeg -hide_banner -v {} -y -f rawvideo -pix_fmt {} -s {}x{} -r {} -i - -c:v "
         "libx264 -pix_fmt yuv420p -an out_vid.mp4",
-        pixelFormat, width, height, fps);
+        loglevel, pixelFormat, width, height, fps);
 }
 
 #endif
