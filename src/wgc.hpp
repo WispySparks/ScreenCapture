@@ -2,8 +2,16 @@
 #define WGC_HPP
 
 #include <windows.h>
+#include <winrt/windows.foundation.h>
 
-void CaptureDisplayWGC(HMONITOR display, bool captureCursor);
-void CaptureWindowWGC(HWND window, bool captureCursor);
+#include <vector>
+
+struct Frame {
+    std::vector<uint8_t> data;
+    winrt::Windows::Foundation::TimeSpan timestamp;
+};
+
+std::vector<Frame> CaptureDisplay(HMONITOR display, bool captureCursor);
+std::vector<Frame> CaptureWindow(HWND window, bool captureCursor);
 
 #endif

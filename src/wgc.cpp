@@ -1,10 +1,10 @@
+#include "wgc.hpp"
+
 #include <d3d11.h>
 #include <windows.graphics.directx.direct3d11.interop.h>
 #include <winrt/base.h>
-#include <winrt/windows.foundation.h>
 #include <winrt/windows.graphics.capture.h>
 
-#include <chrono>
 #include <iostream>
 
 #include "util.hpp"
@@ -19,11 +19,6 @@ using namespace winrt::Windows::Graphics::DirectX::Direct3D11;
 
 using winrt::com_ptr;
 
-struct Frame {
-    std::vector<uint8_t> data;
-    winrt::TimeSpan timestamp;
-};
-const int fps = 60;
 com_ptr<ID3D11Device> device{};
 com_ptr<ID3D11DeviceContext> context{};
 std::vector<Frame> frames{};
@@ -67,7 +62,7 @@ void OnFrameArrived(const winrt::Direct3D11CaptureFramePool& framePool,
     frame.Close();
 }
 
-void CaptureWGC(winrt::GraphicsCaptureItem item, bool captureCursor) {
+std::vector<Frame> Capture(winrt::GraphicsCaptureItem item, bool captureCursor) {
     winrt::GraphicsCaptureAccess::RequestAccessAsync(winrt::GraphicsCaptureAccessKind::Borderless)
         .get();
     com_ptr<IDXGIDevice> idxgiDevice{};
@@ -99,31 +94,16 @@ void CaptureWGC(winrt::GraphicsCaptureItem item, bool captureCursor) {
     framePool.Close();
     iDevice.Close();
     std::cout << std::format("Frames Captured: {}.\n", frames.size());
-    FILE* pipe = _popen(GetCommand("bgra", frames.at(0).data.size() / item.Size().Height / 4,
-                                   item.Size().Height, fps)
-                            .c_str(),
-                        "wb");
-    auto start = std::chrono::system_clock::now();
-    for (size_t i = 0; i < frames.size(); i++) {
-        auto frame = frames.at(i);
-        std::fwrite(frame.data.data(), sizeof(uint8_t), frame.data.size(), pipe);
-    }
-    std::cout << "Writing video file took "
-              << std::chrono::duration_cast<std::chrono::milliseconds>(
-                     std::chrono::system_clock::now() - start)
-                         .count() /
-                     1000.0
-              << " seconds.\n";
-    std::fclose(pipe);
+    return frames;
 }
 
-void CaptureDisplayWGC(HMONITOR display, bool captureCursor) {
-    CaptureWGC(
+std::vector<Frame> CaptureDisplay(HMONITOR display, bool captureCursor) {
+    return Capture(
         winrt::GraphicsCaptureItem::TryCreateFromDisplayId({reinterpret_cast<uint64_t>(display)}),
         captureCursor);
 }
-void CaptureWindowWGC(HWND window, bool captureCursor) {
-    CaptureWGC(
+std::vector<Frame> CaptureWindow(HWND window, bool captureCursor) {
+    return Capture(
         winrt::GraphicsCaptureItem::TryCreateFromWindowId({reinterpret_cast<uint64_t>(window)}),
         captureCursor);
 }
