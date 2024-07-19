@@ -12,17 +12,9 @@ void CaptureWindowDD(HWND window);
 void CaptureWindowDX(HWND window);
 void CaptureWindowGDI(HWND window);
 
-namespace {
-const int width = GetSystemMetrics(SM_CXVIRTUALSCREEN);
-const int height = GetSystemMetrics(SM_CYVIRTUALSCREEN);
-}
-
 using winrt::com_ptr;
 
 int main() {
-    HandleError(width == 0, "GetSystemMetrics(Width) failed!");
-    HandleError(height == 0, "GetSystemMetrics(Height) failed!");
-    // Dpi aware
     // Figure out holding certain frames for longer or dropping frames
     // Make writing to ffmpeg faster
     auto windows = GetWindows();
@@ -31,8 +23,8 @@ int main() {
     auto displays = GetDisplays();
     HMONITOR display = displays.at(0);
     std::cout << GetDisplayName(display) << "\n";
-    CaptureDisplayWGC(display, true);
-    // CaptureWindowWGC(window, true);
+    // CaptureDisplayWGC(display, true);
+    CaptureWindowWGC(window, true);
     // CaptureWindowDD(window);
     // CaptureWindowDX(window);
     // CaptureWindowGDI(window);
@@ -178,6 +170,8 @@ void CaptureWindowDX(HWND window) {
 
 // Pass in NULL to capture the desktop instead of a specific window.
 void CaptureWindowGDI(HWND window) {
+    const int width = GetSystemMetrics(SM_CXVIRTUALSCREEN);
+    const int height = GetSystemMetrics(SM_CYVIRTUALSCREEN);
     HDC srcDC = nullptr;
     HDC destDC = nullptr;
     HBITMAP bitmap = nullptr;
