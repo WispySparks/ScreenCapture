@@ -1,6 +1,7 @@
 #include <iostream>
 #include <vector>
 
+#include "encoder.hpp"
 #include "util.hpp"
 #include "wgc.hpp"
 
@@ -11,8 +12,9 @@ int main() {
     auto displays = GetDisplays();
     HMONITOR display = displays.at(0);
     std::cout << GetDisplayName(display) << "\n";
-    CaptureDisplay(display, true);
-    // CaptureWindow(window, true);
+    auto frames = CaptureDisplay(display, true);
+    // auto frames = CaptureWindow(window, true);
+    WriteToFile(frames);
     std::cout << "\n---PROGRAM END---\n\n";
     return 0;
 }

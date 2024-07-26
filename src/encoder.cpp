@@ -1,6 +1,35 @@
+#include <mfapi.h>
+#include <mfidl.h>
+#include <mfreadwrite.h>
+#include <winrt/base.h>
 
+#include <vector>
+
+#include "wgc.hpp"
+
+using winrt::com_ptr;
 
 // https://learn.microsoft.com/en-us/windows/win32/medfound/sink-writer
+void WriteToFile(std::vector<Frame> frames) {
+    std::wstring file = L"output.mp4";
+    com_ptr<IMFSinkWriter> sinkWriter;
+    com_ptr<IMFMediaType> inputFormat;
+    com_ptr<IMFMediaType> outputFormat;
+    com_ptr<IMFSample> sample;
+    DWORD streamIndex;
+    HRESULT hr = MFStartup(MF_VERSION);
+    hr = MFCreateSinkWriterFromURL(file.data(), NULL, NULL, sinkWriter.put());
+    hr = MFCreateMediaType(inputFormat.put());
+    hr = MFCreateMediaType(outputFormat.put());
+    hr = sinkWriter->AddStream(outputFormat.get(), &streamIndex);
+    hr = sinkWriter->SetInputMediaType(streamIndex, inputFormat.get(), NULL);
+    hr = sinkWriter->BeginWriting();
+    for (auto frame : frames) {
+        hr = sinkWriter->WriteSample(streamIndex, sample.get());
+    }
+    hr = sinkWriter->Finalize();
+    hr = MFShutdown();
+}
 
 // namespace winrt {
 // using namespace winrt::Windows::Media::MediaProperties;
