@@ -5,6 +5,6 @@
 
 #include "wgc.hpp"
 
-void WriteToFile(std::vector<Frame> frames);
+void WriteToFile(std::wstring file, int fps, std::vector<Frame> frames);
 
 #endif

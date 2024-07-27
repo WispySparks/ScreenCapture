@@ -56,7 +56,7 @@ void OnFrameArrived(const winrt::Direct3D11CaptureFramePool& framePool,
     const int size = mappedResource.RowPitch * textureDesc.Height;
     std::vector<uint8_t> buffer(static_cast<uint8_t*>(mappedResource.pData),
                                 static_cast<uint8_t*>(mappedResource.pData) + size);
-    frames.push_back({buffer, frame.SystemRelativeTime()});
+    frames.push_back({textureDesc.Width, textureDesc.Height, buffer, frame.SystemRelativeTime()});
 
     rtSurface.Close();
     frame.Close();
@@ -67,7 +67,7 @@ std::vector<Frame> Capture(winrt::GraphicsCaptureItem item, bool captureCursor) 
         .get();
     com_ptr<IDXGIDevice> idxgiDevice{};
     winrt::IDirect3DDevice iDevice{};
-    winrt::DirectXPixelFormat pixelFormat{winrt::DirectXPixelFormat::B8G8R8A8UIntNormalized};
+    winrt::DirectXPixelFormat pixelFormat{winrt::DirectXPixelFormat::R8G8B8A8UIntNormalized};
     UINT deviceFlags = D3D11_CREATE_DEVICE_BGRA_SUPPORT;
     deviceFlags |= D3D11_CREATE_DEVICE_DEBUG;  // DEBUG FLAG
     HRESULT hr = D3D11CreateDevice(NULL, D3D_DRIVER_TYPE_HARDWARE, NULL, deviceFlags, NULL, 0,
