@@ -56,7 +56,9 @@ void OnFrameArrived(const winrt::Direct3D11CaptureFramePool& framePool,
     const int size = mappedResource.RowPitch * textureDesc.Height;
     std::vector<uint8_t> buffer(static_cast<uint8_t*>(mappedResource.pData),
                                 static_cast<uint8_t*>(mappedResource.pData) + size);
-    frames.push_back({textureDesc.Width, textureDesc.Height, buffer, frame.SystemRelativeTime()});
+    auto timestamp = frames.size() > 0 ? frame.SystemRelativeTime() - frames.at(0).timestamp
+                                       : frame.SystemRelativeTime();
+    frames.push_back({textureDesc.Width, textureDesc.Height, buffer, timestamp});
 
     rtSurface.Close();
     frame.Close();
@@ -67,7 +69,6 @@ std::vector<Frame> Capture(winrt::GraphicsCaptureItem item, bool captureCursor) 
         .get();
     com_ptr<IDXGIDevice> idxgiDevice{};
     winrt::IDirect3DDevice iDevice{};
-    winrt::DirectXPixelFormat pixelFormat{winrt::DirectXPixelFormat::R8G8B8A8UIntNormalized};
     UINT deviceFlags = D3D11_CREATE_DEVICE_BGRA_SUPPORT;
     deviceFlags |= D3D11_CREATE_DEVICE_DEBUG;  // DEBUG FLAG
     HRESULT hr = D3D11CreateDevice(NULL, D3D_DRIVER_TYPE_HARDWARE, NULL, deviceFlags, NULL, 0,
@@ -79,7 +80,8 @@ std::vector<Frame> Capture(winrt::GraphicsCaptureItem item, bool captureCursor) 
                                               reinterpret_cast<IInspectable**>(&iDevice));
     HandleError(hr, "Couldn't create IDirect3DDevice!");
     winrt::Direct3D11CaptureFramePool framePool =
-        winrt::Direct3D11CaptureFramePool::CreateFreeThreaded(iDevice, pixelFormat, 1, item.Size());
+        winrt::Direct3D11CaptureFramePool::CreateFreeThreaded(
+            iDevice, winrt::DirectXPixelFormat::R8G8B8A8UIntNormalized, 1, item.Size());
     framePool.FrameArrived(&OnFrameArrived);
     while (!GetAsyncKeyState(VK_RSHIFT));
     winrt::GraphicsCaptureSession session = framePool.CreateCaptureSession(item);
@@ -94,6 +96,7 @@ std::vector<Frame> Capture(winrt::GraphicsCaptureItem item, bool captureCursor) 
     framePool.Close();
     iDevice.Close();
     std::cout << std::format("Frames Captured: {}.\n", frames.size());
+    frames.at(0).timestamp = winrt::TimeSpan{}.zero();
     return frames;
 }
 
