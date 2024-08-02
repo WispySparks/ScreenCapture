@@ -10,12 +10,55 @@
 
 using winrt::com_ptr;
 
+std::vector<Frame> BGRAToYUY2(std::vector<Frame> frames) {
+    for (auto frame : frames) {
+        std::vector<uint8_t> dest{};
+        dest.resize(frame.width * frame.height * 2);
+        double R0, G0, B0, R1, G1, B1, Y0, Y1, U, V;
+        size_t j = 0;
+        for (size_t i = 0; i < frame.data.size(); i += 8) {
+            B0 = frame.data.at(i);
+            G0 = frame.data.at(i + 1);
+            R0 = frame.data.at(i + 2);  // skip alpha byte
+            B1 = frame.data.at(i + 4);
+            G1 = frame.data.at(i + 5);
+            R1 = frame.data.at(i + 6);
+
+            Y0 = 0.299 * R0 + 0.587 * G0 + 0.114 * B0;
+            Y1 = 0.299 * R1 + 0.587 * G1 + 0.114 * B1;
+            U = 0.492 * (B0 - Y0) + 128.0;
+            V = 0.877 * (R0 - Y0) + 128.0;
+
+            dest.at(j) = static_cast<uint8_t>(Y0);
+            dest.at(j + 2) = static_cast<uint8_t>(Y1);
+            dest.at(j + 1) = U > 255.0 ? 255 : U < 0.0 ? 0 : static_cast<uint8_t>(U);
+            dest.at(j + 3) = V > 255.0 ? 255 : V < 0.0 ? 0 : static_cast<uint8_t>(V);
+
+            j += 4;
+        }
+        // frame.data = dest;
+        FILE* file;
+        fopen_s(&file, "pic.yuy2", "w");
+        std::fwrite(dest.data(), sizeof(uint8_t), dest.size(), file);
+        std::fclose(file);
+        fopen_s(&file, "pic.bgra", "w");
+        std::fwrite(frame.data.data(), sizeof(uint8_t), frame.data.size(), file);
+        std::fclose(file);
+        exit(0);
+    }
+    return frames;
+}
+
 // https://learn.microsoft.com/en-us/windows/win32/medfound/sink-writer
+// https://learn.microsoft.com/en-us/windows/win32/medfound/colorconverter
 // https://stackoverflow.com/a/51278029
+// compute shader
+// test with our format first to see if it even works
 void WriteToFile(const std::wstring file, const int fps, std::vector<Frame> frames) {
-    if (frames.size() == 0) return;
+    if (frames.empty()) return;
     const int64_t sampleDuration = 10'000'000 / fps;
     const unsigned int bitrate = 800'000;
+    frames = BGRAToYUY2(frames);
     Frame referenceFrame = frames.at(0);
     com_ptr<IMFSinkWriter> sinkWriter;
     com_ptr<IMFMediaType> inputFormat;

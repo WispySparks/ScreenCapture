@@ -6,7 +6,7 @@
 
 #include <vector>
 
-// Format: RGBA 32bpp
+// Format: BGRA 32bpp
 struct Frame {
     unsigned int width, height;
     std::vector<uint8_t> data;

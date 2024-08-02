@@ -81,7 +81,7 @@ std::vector<Frame> Capture(winrt::GraphicsCaptureItem item, bool captureCursor) 
     HandleError(hr, "Couldn't create IDirect3DDevice!");
     winrt::Direct3D11CaptureFramePool framePool =
         winrt::Direct3D11CaptureFramePool::CreateFreeThreaded(
-            iDevice, winrt::DirectXPixelFormat::R8G8B8A8UIntNormalized, 1, item.Size());
+            iDevice, winrt::DirectXPixelFormat::B8G8R8A8UIntNormalized, 1, item.Size());
     framePool.FrameArrived(&OnFrameArrived);
     while (!GetAsyncKeyState(VK_RSHIFT));
     winrt::GraphicsCaptureSession session = framePool.CreateCaptureSession(item);
@@ -96,7 +96,9 @@ std::vector<Frame> Capture(winrt::GraphicsCaptureItem item, bool captureCursor) 
     framePool.Close();
     iDevice.Close();
     std::cout << std::format("Frames Captured: {}.\n", frames.size());
-    frames.at(0).timestamp = winrt::TimeSpan{}.zero();
+    if (!frames.empty()) {
+        frames.at(0).timestamp = winrt::TimeSpan{}.zero();
+    }
     return frames;
 }
 
