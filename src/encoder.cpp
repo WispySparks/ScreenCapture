@@ -36,15 +36,7 @@ std::vector<Frame> BGRAToYUY2(std::vector<Frame> frames) {
 
             j += 4;
         }
-        // frame.data = dest;
-        FILE* file;
-        fopen_s(&file, "pic.yuy2", "w");
-        std::fwrite(dest.data(), sizeof(uint8_t), dest.size(), file);
-        std::fclose(file);
-        fopen_s(&file, "pic.bgra", "w");
-        std::fwrite(frame.data.data(), sizeof(uint8_t), frame.data.size(), file);
-        std::fclose(file);
-        exit(0);
+        frame.data = dest;
     }
     return frames;
 }
