@@ -3,6 +3,7 @@
 #include <mfreadwrite.h>
 #include <winrt/base.h>
 
+#include <iostream>
 #include <vector>
 
 #include "util.hpp"
@@ -44,14 +45,16 @@ std::vector<Frame> BGRAToYUY2(std::vector<Frame> frames) {
 // https://learn.microsoft.com/en-us/windows/win32/medfound/sink-writer
 // https://learn.microsoft.com/en-us/windows/win32/medfound/colorconverter
 // https://stackoverflow.com/a/51278029
-// compute shader
-// test with our format first to see if it even works
+// compute shader?
 void WriteToFile(const std::wstring file, const int fps, std::vector<Frame> frames) {
     if (frames.empty()) return;
-    const int64_t sampleDuration = 10'000'000 / fps;
-    const unsigned int bitrate = 800'000;
-    frames = BGRAToYUY2(frames);
+    // frames = BGRAToYUY2(frames);
     Frame referenceFrame = frames.at(0);
+    std::cout << std::format("{}, {}, {}, {}\n", referenceFrame.width, referenceFrame.height,
+                             referenceFrame.timestamp.count(), referenceFrame.data.size());
+    const int64_t sampleDuration = 10'000'000 / fps;
+    const unsigned int bitrate =
+        static_cast<unsigned int>(referenceFrame.width * referenceFrame.height * fps * 0.1);
     com_ptr<IMFSinkWriter> sinkWriter;
     com_ptr<IMFMediaType> inputFormat;
     com_ptr<IMFMediaType> outputFormat;
@@ -73,20 +76,31 @@ void WriteToFile(const std::wstring file, const int fps, std::vector<Frame> fram
 
     // Config input format
     hr = inputFormat->SetGUID(MF_MT_MAJOR_TYPE, MFMediaType_Video);
-    hr = inputFormat->SetGUID(MF_MT_SUBTYPE, MFVideoFormat_YUY2);
+    HandleError(hr, "Failed calling inputFormat->SetGUID(Major)!");
+    hr = inputFormat->SetGUID(MF_MT_SUBTYPE, MFVideoFormat_RGB32);
+    HandleError(hr, "Failed calling inputFormat->SetGUID(Subtype)!");
     hr = inputFormat->SetUINT32(MF_MT_INTERLACE_MODE, MFVideoInterlace_Progressive);
+    HandleError(hr, "Failed calling inputFormat->SetUINT32!");
     hr = MFSetAttributeSize(inputFormat.get(), MF_MT_FRAME_SIZE, referenceFrame.width,
                             referenceFrame.height);
+    HandleError(hr, "Failed calling MFSetAttributeSize(Input)!");
     hr = MFSetAttributeRatio(inputFormat.get(), MF_MT_FRAME_RATE, fps, 1);
+    HandleError(hr, "Failed calling MFSetAttributeRatio(Input)!");
 
     // Config output format
     hr = outputFormat->SetGUID(MF_MT_MAJOR_TYPE, MFMediaType_Video);
-    hr = outputFormat->SetGUID(MF_MT_SUBTYPE, MFVideoFormat_H264);
+    HandleError(hr, "Failed calling outputFormat->SetGUID(Major)!");
+    hr = outputFormat->SetGUID(MF_MT_SUBTYPE, MFVideoFormat_WMV3);
+    HandleError(hr, "Failed calling outputFormat->SetGUID(Subtype)!");
     hr = outputFormat->SetUINT32(MF_MT_AVG_BITRATE, bitrate);
+    HandleError(hr, "Failed calling outputFormat->SetUINT32(Bitrate)!");
     hr = outputFormat->SetUINT32(MF_MT_INTERLACE_MODE, MFVideoInterlace_Progressive);
-    MFSetAttributeSize(outputFormat.get(), MF_MT_FRAME_SIZE, referenceFrame.width,
-                       referenceFrame.height);
-    MFSetAttributeRatio(outputFormat.get(), MF_MT_FRAME_RATE, fps, 1);
+    HandleError(hr, "Failed calling outputFormat->SetUINT32(Interlace)!");
+    hr = MFSetAttributeSize(outputFormat.get(), MF_MT_FRAME_SIZE, referenceFrame.width,
+                            referenceFrame.height);
+    HandleError(hr, "Failed calling MFSetAttributeSize(Output)!");
+    hr = MFSetAttributeRatio(outputFormat.get(), MF_MT_FRAME_RATE, fps, 1);
+    HandleError(hr, "Failed calling MFSetAttributeRatio(Output)!");
 
     hr = sample->AddBuffer(buffer.get());
     HandleError(hr, "Failed calling sample->AddBuffer!");
@@ -99,10 +113,10 @@ void WriteToFile(const std::wstring file, const int fps, std::vector<Frame> fram
     hr = sinkWriter->BeginWriting();
     HandleError(hr, "Failed calling sinkWriter->BeginWriting!");
     for (auto frame : frames) {
-        uint8_t* data;
+        uint8_t* data = nullptr;
         hr = buffer->Lock(&data, NULL, NULL);
         HandleError(hr, "Failed calling buffer->Lock!");
-        data = frame.data.data();
+        std::memcpy(data, frame.data.data(), frame.data.size());
         hr = buffer->SetCurrentLength(static_cast<DWORD>(frame.data.size()));
         HandleError(hr, "Failed calling buffer->SetCurrentLength!");
         hr = buffer->Unlock();
