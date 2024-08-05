@@ -56,7 +56,7 @@ void OnFrameArrived(const winrt::Direct3D11CaptureFramePool& framePool,
     const int size = mappedResource.RowPitch * textureDesc.Height;
     std::vector<uint8_t> buffer(static_cast<uint8_t*>(mappedResource.pData),
                                 static_cast<uint8_t*>(mappedResource.pData) + size);
-    auto timestamp = frames.size() > 0 ? frame.SystemRelativeTime() - frames.at(0).timestamp
+    auto timestamp = frames.size() > 0 ? frame.SystemRelativeTime() - frames.front().timestamp
                                        : frame.SystemRelativeTime();
     frames.push_back({textureDesc.Width, textureDesc.Height, buffer, timestamp});
 
@@ -97,7 +97,7 @@ std::vector<Frame> Capture(winrt::GraphicsCaptureItem item, bool captureCursor) 
     iDevice.Close();
     std::cout << std::format("Frames Captured: {}.\n", frames.size());
     if (!frames.empty()) {
-        frames.at(0).timestamp = winrt::TimeSpan{}.zero();
+        frames.front().timestamp = winrt::TimeSpan{}.zero();
     }
     return frames;
 }

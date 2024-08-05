@@ -54,7 +54,7 @@ std::vector<uint8_t> BGRAToYUY2(unsigned int width, unsigned int height,
 // https://stackoverflow.com/a/51278029
 void WriteToFile(const std::wstring file, const unsigned int fps, std::vector<Frame> frames) {
     if (frames.empty()) return;
-    Frame referenceFrame = frames.at(0);
+    Frame referenceFrame = frames.front();
     std::cout << std::format("{}, {}, {}, {}\n", referenceFrame.width, referenceFrame.height,
                              referenceFrame.timestamp.count(), referenceFrame.data.size());
     const int64_t sampleDuration = 10'000'000 / fps;
