@@ -6,14 +6,15 @@
 
 #include <vector>
 
-// Format: BGRA 32bpp
 struct Frame {
-    unsigned int width, height;
+    const unsigned int width, height;
     std::vector<uint8_t> data;
     winrt::Windows::Foundation::TimeSpan timestamp;
 };
 
+// Format: BGRA 32bpp
 std::vector<Frame> CaptureDisplay(HMONITOR display, bool captureCursor);
+// Format: BGRA 32bpp
 std::vector<Frame> CaptureWindow(HWND window, bool captureCursor);
 
 #endif

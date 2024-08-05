@@ -11,44 +11,49 @@
 
 using winrt::com_ptr;
 
-std::vector<Frame> BGRAToYUY2(std::vector<Frame> frames) {
-    for (auto frame : frames) {
-        std::vector<uint8_t> dest{};
-        dest.resize(frame.width * frame.height * 2);
-        double R0, G0, B0, R1, G1, B1, Y0, Y1, U, V;
-        size_t j = 0;
-        for (size_t i = 0; i < frame.data.size(); i += 8) {
-            B0 = frame.data.at(i);
-            G0 = frame.data.at(i + 1);
-            R0 = frame.data.at(i + 2);  // skip alpha byte
-            B1 = frame.data.at(i + 4);
-            G1 = frame.data.at(i + 5);
-            R1 = frame.data.at(i + 6);
+// struct VectorBuffer : IMFMediaBuffer {
+//     HRESULT Lock(BYTE**, DWORD*, DWORD*) override { return 0; }
+//     HRESULT Unlock() override { return 0; }
+//     HRESULT GetCurrentLength(DWORD*) override { return 0; }
+//     HRESULT SetCurrentLength(DWORD) override { return 0; }
+//     HRESULT GetMaxLength(DWORD*) override { return 0; }
+//     HRESULT QueryInterface(REFIID, void**) override { return 0; }
+//     ULONG AddRef() override { return 0; };
+//     ULONG Release() override { return 0; };
+// };
 
-            Y0 = 0.299 * R0 + 0.587 * G0 + 0.114 * B0;
-            Y1 = 0.299 * R1 + 0.587 * G1 + 0.114 * B1;
-            U = 0.492 * (B0 - Y0) + 128.0;
-            V = 0.877 * (R0 - Y0) + 128.0;
+std::vector<uint8_t> BGRAToYUY2(unsigned int width, unsigned int height,
+                                std::vector<uint8_t> bgra) {
+    std::vector<uint8_t> yuy2(width * height * 2);
+    size_t j = 0;
+    double R0, G0, B0, R1, G1, B1, Y0, Y1, U, V;
+    for (size_t i = 0; i < bgra.size(); i += 8) {
+        B0 = bgra.at(i);
+        G0 = bgra.at(i + 1);
+        R0 = bgra.at(i + 2);  // skip alpha byte
+        B1 = bgra.at(i + 4);
+        G1 = bgra.at(i + 5);
+        R1 = bgra.at(i + 6);
 
-            dest.at(j) = static_cast<uint8_t>(Y0);
-            dest.at(j + 2) = static_cast<uint8_t>(Y1);
-            dest.at(j + 1) = U > 255.0 ? 255 : U < 0.0 ? 0 : static_cast<uint8_t>(U);
-            dest.at(j + 3) = V > 255.0 ? 255 : V < 0.0 ? 0 : static_cast<uint8_t>(V);
+        Y0 = 0.299 * R0 + 0.587 * G0 + 0.114 * B0;
+        Y1 = 0.299 * R1 + 0.587 * G1 + 0.114 * B1;
+        U = 0.492 * (B0 - Y0) + 128.0;
+        V = 0.877 * (R0 - Y0) + 128.0;
 
-            j += 4;
-        }
-        frame.data = dest;
+        yuy2.at(j) = static_cast<uint8_t>(Y0);
+        yuy2.at(j + 2) = static_cast<uint8_t>(Y1);
+        yuy2.at(j + 1) = U > 255.0 ? 255 : U < 0.0 ? 0 : static_cast<uint8_t>(U);
+        yuy2.at(j + 3) = V > 255.0 ? 255 : V < 0.0 ? 0 : static_cast<uint8_t>(V);
+
+        j += 4;
     }
-    return frames;
+    return yuy2;
 }
 
 // https://learn.microsoft.com/en-us/windows/win32/medfound/sink-writer
-// https://learn.microsoft.com/en-us/windows/win32/medfound/colorconverter
 // https://stackoverflow.com/a/51278029
-// compute shader?
-void WriteToFile(const std::wstring file, const int fps, std::vector<Frame> frames) {
+void WriteToFile(const std::wstring file, const unsigned int fps, std::vector<Frame> frames) {
     if (frames.empty()) return;
-    // frames = BGRAToYUY2(frames);
     Frame referenceFrame = frames.at(0);
     std::cout << std::format("{}, {}, {}, {}\n", referenceFrame.width, referenceFrame.height,
                              referenceFrame.timestamp.count(), referenceFrame.data.size());
@@ -77,10 +82,14 @@ void WriteToFile(const std::wstring file, const int fps, std::vector<Frame> fram
     // Config input format
     hr = inputFormat->SetGUID(MF_MT_MAJOR_TYPE, MFMediaType_Video);
     HandleError(hr, "Failed calling inputFormat->SetGUID(Major)!");
-    hr = inputFormat->SetGUID(MF_MT_SUBTYPE, MFVideoFormat_RGB32);
+    hr = inputFormat->SetGUID(MF_MT_SUBTYPE, MFVideoFormat_ARGB32);
     HandleError(hr, "Failed calling inputFormat->SetGUID(Subtype)!");
     hr = inputFormat->SetUINT32(MF_MT_INTERLACE_MODE, MFVideoInterlace_Progressive);
-    HandleError(hr, "Failed calling inputFormat->SetUINT32!");
+    HandleError(hr, "Failed calling inputFormat->SetUINT32(Interlace)!");
+    hr = inputFormat->SetUINT32(
+        MF_MT_DEFAULT_STRIDE,
+        static_cast<unsigned int>(referenceFrame.data.size() / referenceFrame.height));
+    HandleError(hr, "Failed calling inputFormat->SetUINT32(Stride)!");
     hr = MFSetAttributeSize(inputFormat.get(), MF_MT_FRAME_SIZE, referenceFrame.width,
                             referenceFrame.height);
     HandleError(hr, "Failed calling MFSetAttributeSize(Input)!");
@@ -90,7 +99,7 @@ void WriteToFile(const std::wstring file, const int fps, std::vector<Frame> fram
     // Config output format
     hr = outputFormat->SetGUID(MF_MT_MAJOR_TYPE, MFMediaType_Video);
     HandleError(hr, "Failed calling outputFormat->SetGUID(Major)!");
-    hr = outputFormat->SetGUID(MF_MT_SUBTYPE, MFVideoFormat_WMV3);
+    hr = outputFormat->SetGUID(MF_MT_SUBTYPE, MFVideoFormat_H264);
     HandleError(hr, "Failed calling outputFormat->SetGUID(Subtype)!");
     hr = outputFormat->SetUINT32(MF_MT_AVG_BITRATE, bitrate);
     HandleError(hr, "Failed calling outputFormat->SetUINT32(Bitrate)!");
@@ -113,11 +122,12 @@ void WriteToFile(const std::wstring file, const int fps, std::vector<Frame> fram
     hr = sinkWriter->BeginWriting();
     HandleError(hr, "Failed calling sinkWriter->BeginWriting!");
     for (auto frame : frames) {
+        size_t frameSize = frame.data.size();
         uint8_t* data = nullptr;
         hr = buffer->Lock(&data, NULL, NULL);
         HandleError(hr, "Failed calling buffer->Lock!");
-        std::memcpy(data, frame.data.data(), frame.data.size());
-        hr = buffer->SetCurrentLength(static_cast<DWORD>(frame.data.size()));
+        std::memcpy(data, frame.data.data(), frameSize);  //* slow?
+        hr = buffer->SetCurrentLength(static_cast<DWORD>(frameSize));
         HandleError(hr, "Failed calling buffer->SetCurrentLength!");
         hr = buffer->Unlock();
         HandleError(hr, "Failed calling buffer->Unlock!");
