@@ -54,8 +54,8 @@ void OnFrameArrived(const winrt::Direct3D11CaptureFramePool& framePool,
     context->Unmap(stagingTexture.get(), 0);
 
     const int size = mappedResource.RowPitch * textureDesc.Height;
-    std::vector<uint8_t> buffer(static_cast<uint8_t*>(mappedResource.pData),
-                                static_cast<uint8_t*>(mappedResource.pData) + size);
+    uint8_t* begin = static_cast<uint8_t*>(mappedResource.pData);
+    std::vector<uint8_t> buffer(begin, begin + size);
     auto timestamp = frames.size() > 0 ? frame.SystemRelativeTime() - frames.front().timestamp
                                        : frame.SystemRelativeTime();
     frames.push_back({textureDesc.Width, textureDesc.Height, buffer, timestamp});

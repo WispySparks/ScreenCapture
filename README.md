@@ -3,7 +3,7 @@
 A Windows 10/11 application used to record displays and windows.
 
 ## Building
-CMake is required to build this program which can be downloaded [here](https://cmake.org/download/). <br> A mimimum version of `3.28` is required. <br>
+CMake is required to build this program which can be downloaded [here](https://cmake.org/download/). <br> A minimum version of `3.28` is required. <br>
 You will also need MSVC and the Windows SDK which can both be downloaded through the [Visual Studio Installer](https://visualstudio.microsoft.com/vs/community/). <br>
 First clone the repository.
 ```
