@@ -2,25 +2,25 @@
 
 #include <functional>
 #include <iostream>
+#include <stdexcept>
 #include <string>
 #include <vector>
 
 void HandleError(HRESULT hr, std::string msg, std::function<void()> beforeExit = {}) {
     if (FAILED(hr)) {
         _com_error err{hr};
-        std::cerr << "Error: 0x" << std::hex << hr << ", " << err.ErrorMessage() << "\n"
-                  << msg << "\n";
+        std::cerr << "Error: 0x" << std::hex << hr << ", " << err.ErrorMessage() << "\n";
         beforeExit();
-        exit(hr);
+        throw std::runtime_error(msg);
     }
 }
 
 void HandleError(bool failed, std::string msg, std::function<void()> beforeExit = {}) {
     if (failed) {
         DWORD code = GetLastError();
-        std::cerr << "Error: 0x" << std::hex << code << ", " << msg << "\n";
+        std::cerr << "Error: 0x" << std::hex << code << "\n";
         beforeExit();
-        exit(code);
+        throw std::runtime_error(msg);
     }
 }
 

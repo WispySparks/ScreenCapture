@@ -12,9 +12,11 @@ using winrt::com_ptr;
 
 // https://learn.microsoft.com/en-us/windows/win32/medfound/sink-writer
 // https://stackoverflow.com/a/51278029
-// refactor encoder into a class, allow stretching frame to 1920x1080 (configurable output dimension)
+// refactor encoder into a class
+// https://learn.microsoft.com/en-us/windows/win32/medfound/video-processor-mft
 // make faster!
-void WriteToFile(const std::wstring file, const unsigned int fps, std::vector<Frame> frames) {
+void WriteToFile(const std::wstring file, unsigned int outputWidth, unsigned int outputHeight,
+                 const unsigned int fps, std::vector<Frame> frames) {
     if (frames.empty()) return;
     Frame referenceFrame = frames.front();
     const int64_t sampleDuration = 10'000'000 / fps;
@@ -22,11 +24,9 @@ void WriteToFile(const std::wstring file, const unsigned int fps, std::vector<Fr
         static_cast<unsigned int>(referenceFrame.width * referenceFrame.height * fps * 0.1);
     const int imageWidthBytes = referenceFrame.width * 4;
     const int bufferSize = imageWidthBytes * referenceFrame.height;
-    // Make sure output dimensions are even for H.264
-    const unsigned int outputWidth =
-        referenceFrame.width % 2 == 0 ? referenceFrame.width : referenceFrame.width - 1;
-    const unsigned int outputHeight =
-        referenceFrame.height % 2 == 0 ? referenceFrame.height : referenceFrame.height - 1;
+    // Crop to make sure output dimensions are even for H.264
+    outputWidth = outputWidth % 2 == 0 ? outputWidth : outputWidth - 1;
+    outputHeight = outputHeight % 2 == 0 ? outputHeight : outputHeight - 1;
     com_ptr<IMFSinkWriter> sinkWriter;
     com_ptr<IMFMediaType> inputFormat;
     com_ptr<IMFMediaType> outputFormat;
